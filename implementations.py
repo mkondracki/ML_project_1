@@ -1,4 +1,3 @@
-
 #!/usr/bin/env python
 # coding: utf-8
 
@@ -118,7 +117,7 @@ def mean_squared_error_gd(y, tx, initial_w, max_iters, gamma):
         losses.append(compute_loss(y,tx,initial_w,'mse'))
    
         
-    return ws[-1],losses[-1]
+    return ws[-1],losses[-1][0,0]
 
 def mean_squared_error_sgd(y, tx, initial_w, max_iters, gamma):
     """The Stochastic Gradient Descent algorithm (SGD).
@@ -158,7 +157,7 @@ def mean_squared_error_sgd(y, tx, initial_w, max_iters, gamma):
     else:
         losses.append(compute_loss(y,tx,initial_w,'mse'))
 
-    return ws[-1],losses[-1]
+    return ws[-1],losses[-1][0,0]
 
 def least_squares(y, tx):
     
@@ -183,7 +182,7 @@ def least_squares(y, tx):
     #inner_part = y-np.dot(tx,w)
     #loss = np.dot( np.transpose(inner_part), inner_part) / (2*y.shape[0])
     loss=compute_loss(y,tx,w,'mse')
-    return w,loss
+    return w,loss[0,0]
 
 def ridge_regression(y, tx, lambda_):
     """
@@ -201,9 +200,9 @@ def ridge_regression(y, tx, lambda_):
     #weights
     #w = np.dot( np.linalg.inv(xtransx+lamidentity ) ,np.dot(transposeX, y)) 
     w = np.linalg.solve(np.add(xtransx,lamidentity),np.dot(transposeX, y)) 
-    loss= np.sqrt(2*compute_loss(y,tx,w,'mse'))
+    loss= compute_loss(y,tx,w,'mse')
     
-    return w,loss
+    return w,loss[0,0]
 
 def learning_by_gradient_descent(y, tx, w, gamma):
     """
@@ -233,10 +232,14 @@ def logistic_regression(y, tx, initial_w,max_iters, gamma):
     # start the logistic regression
     for iter in range(max_iters):
         # get loss and update w.
-        loss, w = learning_by_gradient_descent(y, tx, w, gamma)
+        #loss, w = learning_by_gradient_descent(y, tx, w, gamma)
+        gradient= compute_gradient(y,tx,w,'logistic')
+        w = w-gamma*gradient
+        loss= compute_loss(y,tx,w,'negative_log_likelihood')
         ws.append(w)
-        # converge criterion
         losses.append(loss)
+        
+        # converge criterion
         if len(losses) > 1 and np.abs(losses[-1] - losses[-2]) < threshold:
             break
             
