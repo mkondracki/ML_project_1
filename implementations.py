@@ -1,10 +1,6 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[ ]:
-
-
-# -*- coding: utf-8 -*-
 
 import numpy as np
 from numpy import exp
@@ -93,7 +89,7 @@ def mean_squared_error_gd(y, tx, initial_w, max_iters, gamma):
         ws.append(w)
         losses.append(loss)
         
-    return ws,losses
+    return ws[-1],losses[-1]
 
 def mean_squared_error_sgd(y, tx, initial_w, max_iters, gamma):
     """The Stochastic Gradient Descent algorithm (SGD).
@@ -130,7 +126,7 @@ def mean_squared_error_sgd(y, tx, initial_w, max_iters, gamma):
         ws.append(w)
         losses.append(loss)
 
-    return ws,losses
+    return ws[-1],losses[-1]
 
 def least_squares(y, tx):
     
@@ -155,7 +151,7 @@ def least_squares(y, tx):
     #inner_part = y-np.dot(tx,w)
     #loss = np.dot( np.transpose(inner_part), inner_part) / (2*y.shape[0])
     loss=compute_loss(y,x,w,'mse')
-    return loss,w
+    return w,loss
 
 def ridge_regression(y, tx, lambda_):
     """
@@ -175,7 +171,7 @@ def ridge_regression(y, tx, lambda_):
     w = np.linalg.solve(np.add(xtransx,lamidentity),np.dot(transposeX, y)) 
     loss= np.sqrt(2*compute_loss(y,tx,w,'mse'))
     
-    return loss, w
+    return w,loss
 
 def learning_by_gradient_descent(y, tx, w, gamma):
     """
@@ -189,7 +185,7 @@ def learning_by_gradient_descent(y, tx, w, gamma):
         loss: scalar number
         w: shape=(D, 1) 
     """   
-    loss= calculate_loss(y,tx,w,'negative_log_likelihood')
+    loss= compute_loss(y,tx,w,'negative_log_likelihood')
     gradient= calculate_gradient(y,tx,w,'logistic')
     w_new = w-gamma*gradient
     return loss,w_new
@@ -212,7 +208,7 @@ def logistic_regression(y, tx, initial_w,max_iters, gamma):
         if len(losses) > 1 and np.abs(losses[-1] - losses[-2]) < threshold:
             break
             
-    return losses,ws
+    return ws[-1],losses[-1]
 
 
 def learning_by_penalized_gradient(y, tx, w, gamma,lambda_):
@@ -227,7 +223,7 @@ def learning_by_penalized_gradient(y, tx, w, gamma,lambda_):
         loss: scalar numb'/er
         gradient: shape=(D, 1)
     """
-    loss = calculate_loss(y,tx,w,'negative_log_likelihood')+lambda_*(np.linalg.norm(w)**2)
+    loss = compute_loss(y,tx,w,'negative_log_likelihood')#+lambda_*(np.linalg.norm(w)**2)
     gradient = calculate_gradient(y, tx, w,'logistic')+2*lambda_*w
     w_new = w-gamma*gradient
     return loss, w_new
@@ -250,5 +246,5 @@ def reg_logistic_regression(y, tx, lambda_, initial_w, max_iters, gamma):
         if len(losses) > 1 and np.abs(losses[-1] - losses[-2]) < threshold:
             break
             
-    return losses,ws
+    return ws[-1],losses[-1]
 
