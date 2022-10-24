@@ -1,3 +1,4 @@
+
 #!/usr/bin/env python
 # coding: utf-8
 
@@ -5,6 +6,31 @@
 import numpy as np
 from numpy import exp
 
+def batch_iter(y, tx, batch_size, num_batches=1, shuffle=True):
+    """
+    Generate a minibatch iterator for a dataset.
+    Takes as input two iterables (here the output desired values 'y' and the input data 'tx')
+    Outputs an iterator which gives mini-batches of `batch_size` matching elements from `y` and `tx`.
+    Data can be randomly shuffled to avoid ordering in the original data messing with the randomness of the minibatches.
+    Example of use :
+    for minibatch_y, minibatch_tx in batch_iter(y, tx, 32):
+        <DO-SOMETHING>
+    """
+    data_size = len(y)
+
+    if shuffle:
+        shuffle_indices = np.random.permutation(np.arange(data_size))
+        shuffled_y = y[shuffle_indices]
+        shuffled_tx = tx[shuffle_indices]
+    else:
+        shuffled_y = y
+        shuffled_tx = tx
+    for batch_num in range(num_batches):
+        start_index = batch_num * batch_size
+        end_index = min((batch_num + 1) * batch_size, data_size)
+        if start_index != end_index:
+            yield shuffled_y[start_index:end_index], shuffled_tx[start_index:end_index]
+            
 def compute_loss(y, tx, w,loss_type):
     """
     Args:
@@ -48,10 +74,10 @@ def compute_gradient(y, tx, w,regreesion_type):
     """
     gradient = []
     # compute linear regression gradient vector
-    if loss_type.lower() == 'linear': 
+    if regreesion_type.lower() == 'linear': 
         error = y-np.dot(tx,w) # (N,)
         gradient= (np.dot(np.transpose(tx),error)) / (-1*y.shape[0]) # (2,)
-    elif loss_type.lower() == 'logistic':  
+    elif regreesion_type.lower() == 'logistic':  
         # compute linear regression gradient vector
         error=sigmoid(np.dot(tx,w))-y
         gradient=np.dot(np.transpose(tx),error)/y.shape[0]
@@ -75,19 +101,22 @@ def mean_squared_error_gd(y, tx, initial_w, max_iters, gamma):
     """
     ws = [initial_w]
     losses = []
-    w = initial_w
-    for n_iter in range(max_iters):
-        
-        # compute gradient and loss
-        gradient = compute_gradient(y,tx,w,'linear')
-        loss=compute_loss(y,tx,w,'mse') 
-        
-        # update w by gradient
-        w = w - gamma*gradient
-        
-        # store w and loss
-        ws.append(w)
-        losses.append(loss)
+    
+    if max_iters > 0:
+        w = initial_w
+        for n_iter in range(max_iters):
+
+            # compute gradient and loss
+            gradient = compute_gradient(y,tx,w,'linear')
+            # update w by gradient
+            w = w - gamma*gradient
+            loss=compute_loss(y,tx,w,'mse') 
+                # store w and loss
+            ws.append(w)
+            losses.append(loss)
+    else:
+        losses.append(compute_loss(y,tx,initial_w,'mse'))
+   
         
     return ws[-1],losses[-1]
 
@@ -112,19 +141,22 @@ def mean_squared_error_sgd(y, tx, initial_w, max_iters, gamma):
     w = initial_w
     batch_size=1
     
-    for n_iter in range(max_iters):
+    if max_iters > 0:
+        for n_iter in range(max_iters):
 
-        # implement stochastic gradient descent.
-        sum_of_sch_gradient = np.zeros(shape=(2, ))
-        for minibatch_y, minibatch_tx in batch_iter(y, tx, batch_size):
-            sum_of_sch_gradient=np.add(sum_of_sch_gradient,compute_gradient(minibatch_y,minibatch_tx,w,'linear'))
+            # implement stochastic gradient descent.
+            sum_of_sch_gradient = np.zeros(shape=(y.shape[1], ))
+            for minibatch_y, minibatch_tx in batch_iter(y, tx, batch_size):
+                sum_of_sch_gradient=np.add(sum_of_sch_gradient,compute_gradient(minibatch_y,minibatch_tx,w,'linear'))
+
+            stochastic_gradient=sum_of_sch_gradient/ batch_size         
+            w = w - gamma*stochastic_gradient
+            loss=compute_loss(y,tx,w,'mse')
             
-        stochastic_gradient=sum_of_sch_gradient/ batch_size
-        loss=compute_loss(y,tx,w,'mse')
-        w = w - gamma*stochastic_gradient
-        
-        ws.append(w)
-        losses.append(loss)
+            ws.append(w)
+            losses.append(loss)
+    else:
+        losses.append(compute_loss(y,tx,initial_w,'mse'))
 
     return ws[-1],losses[-1]
 
@@ -247,4 +279,3 @@ def reg_logistic_regression(y, tx, lambda_, initial_w, max_iters, gamma):
             break
             
     return ws[-1],losses[-1]
-
