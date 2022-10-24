@@ -182,7 +182,7 @@ def least_squares(y, tx):
     # mse loss 
     #inner_part = y-np.dot(tx,w)
     #loss = np.dot( np.transpose(inner_part), inner_part) / (2*y.shape[0])
-    loss=compute_loss(y,x,w,'mse')
+    loss=compute_loss(y,tx,w,'mse')
     return w,loss
 
 def ridge_regression(y, tx, lambda_):
