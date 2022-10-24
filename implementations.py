@@ -186,7 +186,7 @@ def learning_by_gradient_descent(y, tx, w, gamma):
         w: shape=(D, 1) 
     """   
     loss= compute_loss(y,tx,w,'negative_log_likelihood')
-    gradient= calculate_gradient(y,tx,w,'logistic')
+    gradient= compute_gradient(y,tx,w,'logistic')
     w_new = w-gamma*gradient
     return loss,w_new
 
@@ -224,7 +224,7 @@ def learning_by_penalized_gradient(y, tx, w, gamma,lambda_):
         gradient: shape=(D, 1)
     """
     loss = compute_loss(y,tx,w,'negative_log_likelihood')#+lambda_*(np.linalg.norm(w)**2)
-    gradient = calculate_gradient(y, tx, w,'logistic')+2*lambda_*w
+    gradient = compute_gradient(y, tx, w,'logistic')+2*lambda_*w
     w_new = w-gamma*gradient
     return loss, w_new
 
