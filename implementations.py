@@ -1,3 +1,4 @@
+
 #!/usr/bin/env python
 # coding: utf-8
 
@@ -204,22 +205,6 @@ def ridge_regression(y, tx, lambda_):
     
     return w,loss[0,0]
 
-def learning_by_gradient_descent(y, tx, w, gamma):
-    """
-    Implements one step of gradient descent using logistic regression. Return the loss and the updated w.
-    Args:
-        y:  shape=(N, 1)
-        tx: shape=(N, D)
-        w:  shape=(D, 1) 
-        gamma: float
-    Returns:
-        loss: scalar number
-        w: shape=(D, 1) 
-    """   
-    loss= compute_loss(y,tx,w,'negative_log_likelihood')
-    gradient= compute_gradient(y,tx,w,'logistic')
-    w_new = w-gamma*gradient
-    return loss,w_new
 
 def logistic_regression(y, tx, initial_w,max_iters, gamma):
     
@@ -230,38 +215,24 @@ def logistic_regression(y, tx, initial_w,max_iters, gamma):
     w = initial_w
 
     # start the logistic regression
-    for iter in range(max_iters):
-        # get loss and update w.
-        #loss, w = learning_by_gradient_descent(y, tx, w, gamma)
-        gradient= compute_gradient(y,tx,w,'logistic')
-        w = w-gamma*gradient
-        loss= compute_loss(y,tx,w,'negative_log_likelihood')
-        ws.append(w)
-        losses.append(loss)
-        
-        # converge criterion
-        if len(losses) > 1 and np.abs(losses[-1] - losses[-2]) < threshold:
-            break
+    if max_iters > 0:
+        for iter in range(max_iters):
+            # get loss and update w.
+            gradient= compute_gradient(y,tx,w,'logistic')
+            w = w-gamma*gradient
+            loss= compute_loss(y,tx,w,'negative_log_likelihood')
+
+            ws.append(w)
+            losses.append(loss)
+
+            # converge criterion
+            if len(losses) > 1 and np.abs(losses[-1] - losses[-2]) < threshold:
+                break
+    else:
+        losses.append(compute_loss(y,tx,initial_w,'negative_log_likelihood'))
             
     return ws[-1],losses[-1]
 
-
-def learning_by_penalized_gradient(y, tx, w, gamma,lambda_):
-    """
-    Args:
-        y:  shape=(N, 1)
-        tx: shape=(N, D)
-        w:  shape=(D, 1)
-        lambda_: scalar
-
-    Returns:
-        loss: scalar numb'/er
-        gradient: shape=(D, 1)
-    """
-    loss = compute_loss(y,tx,w,'negative_log_likelihood')#+lambda_*(np.linalg.norm(w)**2)
-    gradient = compute_gradient(y, tx, w,'logistic')+2*lambda_*w
-    w_new = w-gamma*gradient
-    return loss, w_new
 
 def reg_logistic_regression(y, tx, lambda_, initial_w, max_iters, gamma):
     
@@ -272,13 +243,21 @@ def reg_logistic_regression(y, tx, lambda_, initial_w, max_iters, gamma):
     w = initial_w
 
     # start the logistic regression
-    for iter in range(max_iters):
-        # get loss and update w.
-        loss, w = learning_by_penalized_gradient(y, tx, w, gamma,lambda_)
-        ws.append(w)
-        # converge criterion
-        losses.append(loss)
-        if len(losses) > 1 and np.abs(losses[-1] - losses[-2]) < threshold:
-            break
+    if max_iters > 0:
+        for iter in range(max_iters):
+            # get loss and update w.
+            
+            gradient = compute_gradient(y, tx, w,'logistic')+2*lambda_*w
+            w = w-gamma*gradient
+            loss = compute_loss(y,tx,w,'negative_log_likelihood')#+lambda_*(np.linalg.norm(w)**2)
+            
+            ws.append(w)
+            losses.append(loss)
+
+            # converge criterion
+            if len(losses) > 1 and np.abs(losses[-1] - losses[-2]) < threshold:
+                break
+    else:
+        losses.append(compute_loss(y,tx,initial_w,'negative_log_likelihood'))
             
     return ws[-1],losses[-1]
