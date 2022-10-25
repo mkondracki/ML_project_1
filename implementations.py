@@ -44,12 +44,12 @@ def compute_loss(y, tx, w,loss_type):
     if loss_type.lower() == 'negative_log_likelihood':
         #compute the cost by negative log likelihood.
         error=sigmoid(np.dot(tx,w))
-        loss= np.sum( y*np.log(error)+ (1-y)*np.log(1-error) ) / -y.shape[0]
+        loss= np.sum( y@np.log(error)+ (1-y)@np.log(1-error)) / -y.shape[0]
     elif loss_type.lower() == 'mse':  
         # compute loss by MSE
         #loss = (np.sum((y - np.dot(tx, w))**2)) / (2.0*y.shape[0])
-        error=y-np.dot(tx,w)
-        loss = (np.dot( np.transpose(error),error))/ (2.0*y.shape[0])
+        error=y-tx@w
+        loss = (error.T@error)/ (2.0*y.shape[0])
     return loss
 
 def sigmoid(t):
@@ -59,7 +59,7 @@ def sigmoid(t):
     Returns:
         scalar or numpy array
     """
-    return  1 / (1 + exp(-t))
+    return  1 / (1 + np.exp(-t))
 
 def compute_gradient(y, tx, w,regreesion_type):
     """Computes the linear regression or logistic regression gradient at w. 
@@ -77,10 +77,10 @@ def compute_gradient(y, tx, w,regreesion_type):
     if regreesion_type.lower() == 'linear': 
         error = y-np.dot(tx,w) # (N,)
         gradient= (np.dot(np.transpose(tx),error)) / (-1*y.shape[0]) # (2,)
+    # compute linear regression gradient vector
     elif regreesion_type.lower() == 'logistic':  
-        # compute linear regression gradient vector
-        error=sigmoid(np.dot(tx,w))-y
-        gradient=np.dot(np.transpose(tx),error)/y.shape[0]
+        error=sigmoid(tx@w)-y
+        gradient=(tx.T@error)/y.shape[0]
     
     return gradient
 
@@ -177,7 +177,7 @@ def least_squares(y, tx):
     #weights = np.dot(right_part,y)
    
     # weights
-    w =np.linalg.solve(np.dot(np.transpose(tx), tx),np.dot(np.transpose(tx), y)) 
+    w =np.linalg.inv(tx.T@tx)@(tx.T@y)
    
     # mse loss 
     #inner_part = y-np.dot(tx,w)
@@ -193,17 +193,18 @@ def ridge_regression(y, tx, lambda_):
         lambda_: scalar.  
     Returns:
         w: optimal weights, numpy array of shape(D,), D is the number of features.
-        loss: rmse loss
+        loss: mae loss
     """
-    transposeX=np.transpose(tx)
-    xtransx = np.dot(transposeX, tx)
-    lamidentity = np.dot(np.identity(xtransx.shape[0]),(lambda_*2*y.shape[0]))
+    lambda_tilda = lambda_*2*y.shape[0]
+    xtransx = tx.T@tx
+    w = np.linalg.inv(xtransx + lambda_tilda@np.identity(xtransx.shape[0])) @ (tx.T@y)
+    #lamidentity = np.dot(np.identity(xtransx.shape[0]),(lambda_*2*y.shape[0]))
     #weights
     #w = np.dot( np.linalg.inv(xtransx+lamidentity ) ,np.dot(transposeX, y)) 
-    w = np.linalg.solve(np.add(xtransx,lamidentity),np.dot(transposeX, y)) 
-    loss= np.sqrt(2*compute_loss(y,tx,w,'mse'))
+    #w = np.linalg.solve(np.add(xtransx,lamidentity),np.dot(transposeX, y)) 
+    loss = np.sqrt(2*compute_loss(y,tx,w,'mse'))
     
-    return w,loss
+    return w, loss
 
 def learning_by_gradient_descent(y, tx, w, gamma):
     """
@@ -255,7 +256,7 @@ def learning_by_penalized_gradient(y, tx, w, gamma,lambda_):
         loss: scalar numb'/er
         gradient: shape=(D, 1)
     """
-    loss = compute_loss(y,tx,w,'negative_log_likelihood')#+lambda_*(np.linalg.norm(w)**2)
+    loss = compute_loss(y,tx,w,'negative_log_likelihood')
     gradient = compute_gradient(y, tx, w,'logistic')+2*lambda_*w
     w_new = w-gamma*gradient
     return loss, w_new
