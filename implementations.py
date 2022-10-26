@@ -314,7 +314,7 @@ def learning_by_penalized_gradient(y, tx, w, gamma, lambda_):
     loss = compute_loss(y, tx, w, "negative_log_likelihood")
     gradient = compute_gradient(y, tx, w, "logistic") + 2 * lambda_ * w
     w_new = w - gamma * gradient
-    #print("w_new : ", w_new)
+
     return loss, w_new
 
 
@@ -339,3 +339,22 @@ def reg_logistic_regression(y, tx, lambda_, initial_w, max_iters, gamma):
             break
 
     return ws[-1], losses[-1]
+
+def search_gamma(y, x, lambda_, initial_w, max_iters, fonction_to_optimize, start_gamma, end_gamma, number) : 
+    gamma_tab=np.linspace(start_gamma, end_gamma, number)
+    losses_tab=[]
+    print(gamma_tab.shape)
+    if fonction_to_optimize=='reg_logistic_regression':
+        for g in gamma_tab:
+            print("gamma = ", g)
+            w, losses = reg_logistic_regression(y, x, lambda_, initial_w, max_iters, g)
+            losses_tab.append(np.abs(losses))
+            print("loss = ", losses)
+    if fonction_to_optimize=='mean_squared_error_gd':
+        for g in gamma_tab:
+            print("gamma = ", g)
+            w, losses = mean_squared_error_gd(y, x, initial_w, max_iters, g)
+            losses_tab.append(np.abs(losses))
+            print("loss = ", losses)
+    return gamma_tab, losses_tab
+
