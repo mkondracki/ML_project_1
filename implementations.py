@@ -50,7 +50,7 @@ def compute_loss(y, tx, w, loss_type):
         # compute loss by MSE
         # loss = (np.sum((y - np.dot(tx, w))**2)) / (2.0*y.shape[0])
         error = y - tx @ w
-        loss = (error.T @ error) / (2.0 * y.shape[0])
+        loss = (error.T @ error) / (2.0 * y.shape[0]) 
     return loss
 
 
@@ -65,7 +65,7 @@ def sigmoid(t):
     return 1 / (1 + np.exp(-(t)))
 
 
-def compute_gradient(y, tx, w, regreesion_type):
+def compute_gradient(y, tx, w, regresion_type):
     """Computes the linear regression or logistic regression gradient at w.
     Args:
         y: numpy array of shape=(N, ) or shape=(N, 1) in case of logistic regression
@@ -78,11 +78,11 @@ def compute_gradient(y, tx, w, regreesion_type):
     """
     gradient = []
     # compute linear regression gradient vector
-    if regreesion_type.lower() == "linear":
+    if regresion_type.lower() == "linear":
         error = y - np.dot(tx, w)  # (N,)
         gradient = (np.dot(np.transpose(tx), error)) / (-1 * y.shape[0])  # (2,)
     # compute logistic regression gradient vector
-    elif regreesion_type.lower() == "logistic":
+    elif regresion_type.lower() == "logistic":
         error = sigmoid(tx @ w) - y
         gradient = (tx.T @ error) / y.shape[0]
 
@@ -124,8 +124,50 @@ def mean_squared_error_gd(y, tx, initial_w, max_iters, gamma):
     return ws[-1], losses[-1]
 
 
+
+# Lea import 
+def mean_squared_error_sgd(y, tx, initial_w, batch_size, max_iters, gamma):
+    """The Stochastic SubGradient Descent algorithm (SubSGD).
+            
+    Args:
+        y: numpy array of shape=(N, )
+        tx: numpy array of shape=(N,2)
+        initial_w: numpy array of shape=(2, ). The initial guess (or the initialization) for the model parameters
+        batch_size: a scalar denoting the number of data points in a mini-batch used for computing the stochastic subgradient
+        max_iters: a scalar denoting the total number of iterations of SubSGD
+        gamma: a scalar denoting the stepsize
+        
+    Returns:
+        losses: a list of length max_iters containing the loss value (scalar) for each iteration of SubSGD
+        ws: a list of length max_iters containing the model parameters as numpy arrays of shape (2, ), for each iteration of SubSGD 
+    """
+    
+    # Define parameters to store w and loss
+    ws = [initial_w]
+    losses = []
+    w = initial_w
+    
+    for n_iter in range(max_iters):
+
+        #implement stochastic subgradient descent.
+
+        #calcul of stochastic gradient 
+        for minibatch_y, minibatch_tx in batch_iter(y, tx, batch_size): 
+            g = compute_gradient(minibatch_y, minibatch_tx, w, "linear")
+        
+        loss = compute_loss(minibatch_y, minibatch_tx, w, "mse")
+        #update w 
+        w = w - gamma*g
+
+        # store w and loss
+        ws.append(w)
+        losses.append(loss)
+        
+    return losses[-1], ws[-1]
+
+"""
 def mean_squared_error_sgd(y, tx, initial_w, max_iters, gamma):
-    """The Stochastic Gradient Descent algorithm (SGD).
+    The Stochastic Gradient Descent algorithm (SGD).
 
     Args:
         y: numpy array of shape=(N, )
@@ -138,7 +180,7 @@ def mean_squared_error_sgd(y, tx, initial_w, max_iters, gamma):
     Returns:
         losses: a list of length max_iters containing the loss value (scalar) for each iteration of SGD
         ws: a list of length max_iters containing the model parameters as numpy arrays of shape (2, ), for each iteration of SGD
-    """
+    
 
     ws = [initial_w]
     losses = []
@@ -167,7 +209,7 @@ def mean_squared_error_sgd(y, tx, initial_w, max_iters, gamma):
 
     return ws[-1], losses[-1]
 
-
+"""
 def least_squares(y, tx):
 
     """

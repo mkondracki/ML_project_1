@@ -71,7 +71,12 @@ def search_gamma(y, x, lambda_, initial_w, max_iters, fonction_to_optimize, star
             w, losses = reg_logistic_regression(y, x, lambda_, initial_w, max_iters, g)
             losses_tab.append(np.abs(losses))
             print("loss = ", losses)
-            
+    if fonction_to_optimize=='mean_squared_error_gd':
+        for g in gamma_tab:
+            print("gamma = ", g)
+            w, losses = mean_squared_error_gd(y, x, initial_w, max_iters, g)
+            losses_tab.append(np.abs(losses))
+            print("loss = ", losses)
     return gamma_tab, losses_tab
     
 
