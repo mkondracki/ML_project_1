@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """some helper functions."""
 import numpy as np
+from implementations import *
 
 def load_data_sample_sub(sub_sample=True, add_outlier=False):
     """Load data and convert it to the metric system."""
@@ -44,7 +45,12 @@ def standardize(x):
     x = (x - mean_x) / std_x
     return x, mean_x, std_x
 
-
+def put_nan(x):
+    """Fill the -999.000 values with np.nan"""
+    return np.where(x==-999.000, np.nan, x)
+    
+    
+    
 def fill_nan(x_nan, median_x):
     """Fill an array x_nan with the median of it"""
     x_filled = np.zeros(x_nan.shape)
@@ -55,6 +61,20 @@ def fill_nan(x_nan, median_x):
     return x_filled
 
 
+def search_gamma(y, x, lambda_, initial_w, max_iters, fonction_to_optimize, start_gamma, end_gamma, number) : 
+    gamma_tab=np.linspace(start_gamma, end_gamma, number)
+    losses_tab=[]
+    print(gamma_tab.shape)
+    if fonction_to_optimize=='reg_logistic_regression':
+        for g in gamma_tab:
+            print("gamma = ", g)
+            w, losses = reg_logistic_regression(y, x, lambda_, initial_w, max_iters, g)
+            losses_tab.append(np.abs(losses))
+            print("loss = ", losses)
+            
+    return gamma_tab, losses_tab
+    
+
 def build_model_data(height, weight):
     """Form (y,tX) to get regression data in matrix form."""
     y = weight
@@ -62,3 +82,5 @@ def build_model_data(height, weight):
     num_samples = len(y)
     tx = np.c_[np.ones(num_samples), x]
     return y, tx
+
+
