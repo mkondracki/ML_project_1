@@ -50,7 +50,6 @@ def put_nan(x):
     return np.where(x==-999.000, np.nan, x)
     
     
-    
 def fill_nan(x_nan, median_x):
     """Fill an array x_nan with the median of it"""
     x_filled = np.zeros(x_nan.shape)
@@ -60,6 +59,14 @@ def fill_nan(x_nan, median_x):
         #print(x_tr_filled[:,j])
     return x_filled
 
+def proportions_nan (x, threshold): 
+    prop_nan = np.empty(x.shape[1])
+
+    for col in range(x.shape[1]): 
+        prop_nan[col] = np.sum(np.isnan(x[:,col]))/x.shape[0]
+    ind = np.where(prop_nan > threshold) 
+
+    return prop_nan, ind 
 
 def search_gamma(y, x, lambda_, initial_w, max_iters, fonction_to_optimize, start_gamma, end_gamma, number) : 
     gamma_tab=np.linspace(start_gamma, end_gamma, number)

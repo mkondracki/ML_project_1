@@ -16,6 +16,31 @@ def build_k_indices(y, k_fold, seed):
     
     return np.array(k_indices)
 
+def train_test_split(y, x, ratio, seed ) : 
+    
+    num_row = y.shape[0]
+    nb_index_test = int(ratio*num_row)
+
+    np.random.seed(seed)
+    indices = np.random.permutation(num_row)
+
+    x_te = x[indices[:nb_index_test]]
+    x_tr = x[indices[nb_index_test:]]
+    y_te = y[indices[:nb_index_test]]
+    y_tr = y[indices[nb_index_test:]]
+    
+    return y_tr, y_te, x_tr, x_te
+
+def plot_loss_iteration(losses): 
+    plt.figure(figsize = (9, 6))
+    plt.plot(losses)
+    plt.xlabel("Iteration", fontsize = 14)
+    plt.ylabel("Losses", fontsize = 14)
+    plt.title("Losses vs Iteration", fontsize = 14)
+    plt.tight_layout()
+    plt.show()
+
+
 def compute_loss(y, tx, w,loss_type):
 
     loss=0.0

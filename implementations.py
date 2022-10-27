@@ -30,9 +30,57 @@ def batch_iter(y, tx, batch_size, num_batches=1, shuffle=True):
         end_index = min((batch_num + 1) * batch_size, data_size)
         if start_index != end_index:
             yield shuffled_y[start_index:end_index], shuffled_tx[start_index:end_index]
+def build_poly(x, degree):
+    """polynomial basis functions for input data x, for j=0 up to j=degree.
+    
+    Args:
+        x: numpy array of shape (N,), N is the number of samples.
+        degree: integer.
+        
+    Returns:
+        poly: numpy array of shape (N,d+1)
+        
+    >>> build_poly(np.array([0.0, 1.5]), 2)
+    array([[1.  , 0.  , 0.  ],
+           [1.  , 1.5 , 2.25]])
+    """
+    # ***************************************************
+    # INSERT YOUR CODE HERE
+    # polynomial basis function: TODO
+    # this function should return the matrix formed
+    # by applying the polynomial basis to the input data
+    # ***************************************************
+    
+    poly = np.ones((len(x),1))
+    for deg in range(1, degree + 1) : 
+        poly = np.c_[poly, np.power(x, deg)]
 
+    return poly         
+                    
+def sigmoid(t):
+    """
+    Args:
+        t: scalar or numpy array
+    Returns:
+        scalar or numpy array
+    """
+    return 1 / (1 + np.exp(-(t)))
 
-def compute_loss(y, tx, w, loss_type):
+def log_loss(y_n, tx_n, w): 
+    
+    a = max(tx_n@w, -10)
+    b = min(tx_n@w, 10)
+    loss_n = y_n*np.log(sigmoid(a)) + (1-y_n)*np.log(1-sigmoid(b))
+    return loss_n
+                       
+def compute_loss_log(y, tx, w ): 
+    
+    N = y.shape[0]
+    loss_n = np.array([log_loss(y[i],tx[i],w) for i in range(N)])
+    loss = -np.dot(loss_n, np.ones(N))/N
+    return loss
+                      
+def compute_loss(y, tx, w,loss_type):
     """
     Args:
         y: numpy array of shape=(N, )
@@ -44,8 +92,9 @@ def compute_loss(y, tx, w, loss_type):
     loss = 0.0
     if loss_type.lower() == "negative_log_likelihood":
         # compute the cost by negative log likelihood.
-        error = sigmoid(tx@w)
-        loss = np.sum(y*np.log(error) + (1 - y)*np.log(1 - error)) / (-y.shape[0])
+        #error = sigmoid(tx@w)
+        #loss = np.sum(y*np.log(error) + (1 - y)*np.log(1 - error)) / (-y.shape[0])
+        loss = compute_loss_log(y, tx,w)
     elif loss_type.lower() == "mse":
         # compute loss by MSE
         # loss = (np.sum((y - np.dot(tx, w))**2)) / (2.0*y.shape[0])
@@ -53,16 +102,6 @@ def compute_loss(y, tx, w, loss_type):
         loss = (error.T @ error) / (2.0 * y.shape[0]) 
     return loss
 
-
-def sigmoid(t):
-    """
-    Args:
-        t: scalar or numpy array
-    Returns:
-        scalar or numpy array
-    """
-    b = 0.001
-    return 1 / (1 + np.exp(-(t)))
 
 
 def compute_gradient(y, tx, w, regresion_type):
@@ -114,7 +153,7 @@ def mean_squared_error_gd(y, tx, initial_w, max_iters, gamma):
             gradient = compute_gradient(y, tx, w, "linear")
             # update w by gradient
             w = w - gamma * gradient
-            loss = compute_loss(y, tx, w, "mse")
+            loss = compute_loss(y, tx, w,  "mse")
             # store w and loss
             ws.append(w)
             losses.append(loss)
@@ -255,7 +294,7 @@ def ridge_regression(y, tx, lambda_):
     # weights
     # w = np.dot( np.linalg.inv(xtransx+lamidentity ) ,np.dot(transposeX, y))
     # w = np.linalg.solve(np.add(xtransx,lamidentity),np.dot(transposeX, y))
-    loss = np.sqrt(2 * compute_loss(y, tx, w, "mse"))
+    loss = np.sqrt(2 * compute_loss(y, tx, w,"mse"))
 
     return w, loss
 
@@ -289,7 +328,7 @@ def logistic_regression(y, tx, initial_w, max_iters, gamma):
     # start the logistic regression
     for iter in range(max_iters):
         # get loss and update w.
-        loss, w = learning_by_gradient_descent(y, tx, w, gamma)
+        loss, w = learning_by_gradient_descent(y, tx, w,gamma)
         ws.append(w)
         # converge criterion
         losses.append(loss)
@@ -311,8 +350,9 @@ def learning_by_penalized_gradient(y, tx, w, gamma, lambda_):
         loss: scalar numb'/er
         gradient: shape=(D, 1)
     """
-    loss = compute_loss(y, tx, w, "negative_log_likelihood")
+    loss = compute_loss(y, tx, w,  "negative_log_likelihood")
     gradient = compute_gradient(y, tx, w, "logistic") + 2 * lambda_ * w
+
     w_new = w - gamma * gradient
 
     return loss, w_new
@@ -325,20 +365,22 @@ def reg_logistic_regression(y, tx, lambda_, initial_w, max_iters, gamma):
     ws = [initial_w]
     losses = []
     w = initial_w
-
+    
     # start the logistic regression
     for iter in range(max_iters):
         # get loss and update w.
         loss, w = learning_by_penalized_gradient(y, tx, w, gamma, lambda_)
         ws.append(w)
+
         # converge criterion
         losses.append(loss)
         if (iter%100)==0 :
             print("iteration : ", iter, " , loss : ", loss)
         if len(losses) > 1 and np.abs(losses[-1] - losses[-2]) < threshold:
             break
+    print(losses[-1])
+    return ws, losses
 
-    return ws[-1], losses[-1]
 
 def search_gamma(y, x, lambda_, initial_w, max_iters, fonction_to_optimize, start_gamma, end_gamma, number) : 
     gamma_tab=np.linspace(start_gamma, end_gamma, number)
