@@ -30,6 +30,7 @@ def batch_iter(y, tx, batch_size, num_batches=1, shuffle=True):
         end_index = min((batch_num + 1) * batch_size, data_size)
         if start_index != end_index:
             yield shuffled_y[start_index:end_index], shuffled_tx[start_index:end_index]
+            
 def build_poly(x, degree):
     """polynomial basis functions for input data x, for j=0 up to j=degree.
     
@@ -79,7 +80,19 @@ def compute_loss_log(y, tx, w ):
     loss_n = np.array([log_loss(y[i],tx[i],w) for i in range(N)])
     loss = -np.dot(loss_n, np.ones(N))/N
     return loss
-                      
+
+
+def compute_loss_log(y,tx,w): 
+    
+    temp = tx@w
+    temp_max = temp
+    temp_min = temp 
+    temp_max[temp < -10 ]= -10 
+    temp_min[temp> 10 ]= 10    
+    
+    loss = np.sum(y*np.log(sigmoid(temp_max))+ (1 - y)*np.log(1 - sigmoid(temp_min))) / (-y.shape[0])
+    return loss
+                  
 def compute_loss(y, tx, w,loss_type):
     """
     Args:
@@ -92,9 +105,10 @@ def compute_loss(y, tx, w,loss_type):
     loss = 0.0
     if loss_type.lower() == "negative_log_likelihood":
         # compute the cost by negative log likelihood.
-        #error = sigmoid(tx@w)
-        #loss = np.sum(y*np.log(error) + (1 - y)*np.log(1 - error)) / (-y.shape[0])
-        loss = compute_loss_log(y, tx,w)
+       
+        error = sigmoid(tx@w)
+        loss = np.sum(y*np.log(error) + (1 - y)*np.log(1 - error)) / (-y.shape[0])
+        #loss = compute_loss_log(y, tx,w)
     elif loss_type.lower() == "mse":
         # compute loss by MSE
         # loss = (np.sum((y - np.dot(tx, w))**2)) / (2.0*y.shape[0])
@@ -350,7 +364,8 @@ def learning_by_penalized_gradient(y, tx, w, gamma, lambda_):
         loss: scalar numb'/er
         gradient: shape=(D, 1)
     """
-    loss = compute_loss(y, tx, w,  "negative_log_likelihood")
+    #loss = compute_loss(y, tx, w,  "negative_log_likelihood")
+    loss = compute_loss_log(y, tx, w )
     gradient = compute_gradient(y, tx, w, "logistic") + 2 * lambda_ * w
 
     w_new = w - gamma * gradient
