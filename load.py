@@ -36,28 +36,44 @@ def sample_data(y, x, seed, size_samples):
     x = x[random_permuted_indices]
     return y[:size_samples], x[:size_samples]
 
+"""
+def standardize(x):
+
+    x_mean = np.nanmean(x, axis = 0)
+    x_std = np.nanstd(x, axis = 0)
+    x_norm = (x - x_mean) / x_std
+    x_median = np.nanmedian(x_norm, axis=0)
+
+    return x_norm, x_mean, x_std, x_median
+
+def fill_nan(x_norm, x_median):
+    x_filled = np.zeros(x_norm.shape)
+    for j in range(x_norm.shape[1]) :
+        x_filled[:,j] = np.where(np.isnan(x_norm[:,j]), x_median[j], x_norm[:,j])
+     
+ """"   return x_filled"""
 
 def standardize(x):
-    """Standardize the original data set."""
-    mean_x = np.nanmean(x)
-    x = x - mean_x
-    std_x = np.nanstd(x)
-    x = (x - mean_x) / std_x
-    return x, mean_x, std_x
+
+    x_mean = np.nanmean(x, axis = 0)
+    x_std = np.nanstd(x, axis = 0)
+    x_norm = (x - x_mean) / x_std
+    x_median = np.nanmedian(x_norm, axis=0)
+
+    return x_norm, x_mean, x_std
+
+def fill_nan(x_nan, x_median):
+    """Fill an array x_nan with the median of it"""
+    x_filled = np.zeros(x_nan.shape)
+    for j in range(x_nan.shape[1]) :
+        x_filled[:,j] = np.where(np.isnan(x_nan[:,j]), x_median[j], x_nan[:,j])
+    return x_filled
+
 
 def put_nan(x):
     """Fill the -999.000 values with np.nan"""
     return np.where(x==-999.000, np.nan, x)
     
-    
-def fill_nan(x_nan, median_x):
-    """Fill an array x_nan with the median of it"""
-    x_filled = np.zeros(x_nan.shape)
-    for j in range(x_nan.shape[1]) :
-        #print("j : ", j)
-        x_filled[:,j] = np.where(np.isnan(x_nan[:,j]), median_x[j], x_nan[:,j])
-        #print(x_tr_filled[:,j])
-    return x_filled
 
 def proportions_nan (x, threshold): 
     prop_nan = np.empty(x.shape[1])

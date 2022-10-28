@@ -66,32 +66,6 @@ def sigmoid(t):
         scalar or numpy array
     """
     return 1 / (1 + np.exp(-(t)))
-
-def log_loss(y_n, tx_n, w): 
-    
-    a = max(tx_n@w, -10)
-    b = min(tx_n@w, 10)
-    loss_n = y_n*np.log(sigmoid(a)) + (1-y_n)*np.log(1-sigmoid(b))
-    return loss_n
-                       
-def compute_loss_log(y, tx, w ): 
-    
-    N = y.shape[0]
-    loss_n = np.array([log_loss(y[i],tx[i],w) for i in range(N)])
-    loss = -np.dot(loss_n, np.ones(N))/N
-    return loss
-
-
-def compute_loss_log(y,tx,w): 
-    
-    temp = tx@w
-    temp_max = temp
-    temp_min = temp 
-    temp_max[temp < -10 ]= -10 
-    temp_min[temp> 10 ]= 10    
-    
-    loss = np.sum(y*np.log(sigmoid(temp_max))+ (1 - y)*np.log(1 - sigmoid(temp_min))) / (-y.shape[0])
-    return loss
                   
 def compute_loss(y, tx, w,loss_type):
     """
@@ -104,11 +78,16 @@ def compute_loss(y, tx, w,loss_type):
     """
     loss = 0.0
     if loss_type.lower() == "negative_log_likelihood":
-        # compute the cost by negative log likelihood.
-       
-        error = sigmoid(tx@w)
-        loss = np.sum(y*np.log(error) + (1 - y)*np.log(1 - error)) / (-y.shape[0])
-        #loss = compute_loss_log(y, tx,w)
+        temp = tx@w
+        temp_max = temp
+        temp_min = temp 
+        temp_max[temp < -10 ]= -10 
+        temp_min[temp> 10 ]= 10    
+
+        loss = np.sum(y*np.log(sigmoid(temp_max))+ (1 - y)*np.log(1 - sigmoid(temp_min))) / (-y.shape[0])
+        
+        return loss
+
     elif loss_type.lower() == "mse":
         # compute loss by MSE
         # loss = (np.sum((y - np.dot(tx, w))**2)) / (2.0*y.shape[0])
@@ -364,8 +343,8 @@ def learning_by_penalized_gradient(y, tx, w, gamma, lambda_):
         loss: scalar numb'/er
         gradient: shape=(D, 1)
     """
-    #loss = compute_loss(y, tx, w,  "negative_log_likelihood")
-    loss = compute_loss_log(y, tx, w )
+    loss = compute_loss(y, tx, w,  "negative_log_likelihood")
+
     gradient = compute_gradient(y, tx, w, "logistic") + 2 * lambda_ * w
 
     w_new = w - gamma * gradient
@@ -393,7 +372,6 @@ def reg_logistic_regression(y, tx, lambda_, initial_w, max_iters, gamma):
             print("iteration : ", iter, " , loss : ", loss)
         if len(losses) > 1 and np.abs(losses[-1] - losses[-2]) < threshold:
             break
-    print(losses[-1])
     return ws, losses
 
 
@@ -415,3 +393,44 @@ def search_gamma(y, x, lambda_, initial_w, max_iters, fonction_to_optimize, star
             print("loss = ", losses)
     return gamma_tab, losses_tab
 
+
+### fonction which return best loss for specific degree 
+import load
+from load import *
+
+def reg_log_degree(y_tr, x_tr, degrees, lambda_, gamma, max_iters): 
+
+    losses = []
+    ws = []
+    for degree in degrees :
+        
+        loss_temp = []
+        w_temp = []
+        print("Degree is ", degree)
+        
+        #create polynomial 
+        x_tr_p = build_poly(x_tr, degree)
+
+        #standardization 
+        x_norm, x_mean, x_std =  standardize(x_tr_p)
+        x_median = np.nanmedian(x_norm, axis = 0)
+        x_tr_p = fill_nan(x_norm, x_median)
+        print(x_tr_p)
+        initial_w = np.full(x_tr_p.shape[1], 0.1)
+
+        loss_temp = np.append(loss_temp, 0)
+        loss_temp = np.append(loss_temp, 1)
+
+        i = 0
+        while(np.abs(loss_temp[-1]-loss_temp[-2]) > 0.005): 
+            print("update w for the ", i+1 , " time")
+            i = i+1 
+            w, loss = reg_logistic_regression(y_tr, x_tr_p, lambda_,  initial_w, max_iters, gamma)
+            initial_w = w[-1]
+            w_temp = np.append(w_temp,w[-1])
+            loss_temp = np.append(loss_temp,loss[-1])
+            
+        losses = np.append(losses, loss_temp[-1])
+        ws = np.append(ws, w_temp[-1])
+                   
+    return losses, ws
