@@ -137,12 +137,14 @@ def reg_log_degree(y_tr, x_tr, degrees, lambda_, gamma, max_iters):
 def search_gamma(y_tr, x_tr, lambda_, initial_w, max_iters, fonction_to_optimize, start_gamma, end_gamma, number) : 
     gamma_tab=np.linspace(start_gamma, end_gamma, number)
     losses_tab=[]
+    w_tab = []
     print(gamma_tab.shape)
     if fonction_to_optimize=='reg_logistic_regression':
         for g in gamma_tab:
             print("gamma = ", g)
-            w, losses= reg_log_find_gamma(y_tr, x_tr, lambda_,initial_w, g, max_iters)
-            losses_tab.append(losses)
+            w, losses = reg_log_find_gamma(y_tr, x_tr, lambda_,initial_w, g, max_iters)
+            w_tab.append(w_tab, w)
+            losses_tab.append(losses_tab, losses)
     return gamma_tab, losses_tab
 
 def reg_log_find_gamma(y_tr, x_tr, lambda_,initial_w, gamma, max_iters): 
@@ -162,7 +164,7 @@ def reg_log_find_gamma(y_tr, x_tr, lambda_,initial_w, gamma, max_iters):
         i = i+1 
         w, loss = reg_logistic_regression(y_tr, x_tr, lambda_,  initial_w, max_iters, gamma)
         initial_w = w[-1]
-        w_temp = np.append(w_temp,w[-1])
+        w_temp = np.append(w_temp,initial_w)
         loss_temp = np.append(loss_temp,loss[-1])
 
     losses = np.append(losses, loss_temp[-1])
