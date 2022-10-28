@@ -35,8 +35,6 @@ def compute_loss(y, tx, w,loss_type):
         
         return loss
     elif loss_type.lower() == 'mse':  
-        # compute loss by MSE
-        #loss = (np.sum((y - np.dot(tx, w))**2)) / (2.0*y.shape[0])
         error=y-np.dot(tx,w)
         loss = (np.dot( np.transpose(error),error))/ (2.0*y.shape[0])
     return loss
