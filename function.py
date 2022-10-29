@@ -117,6 +117,30 @@ def build_poly(x, degree):
         poly = np.c_[poly, np.power(x, deg)]
     return poly 
 
+def multiply_features (x) : 
+    v = x
+    for col in range(x.shape[1]): 
+        w = (x.T*x[:,col]).T 
+        v = np.concatenate((v, w), axis = 1)
+    x_m = np.unique(v, axis = 1)
+    return x_m
+
+def sum_features(x): 
+
+    copy_x = x
+    for col in range(x.shape[1]): 
+        temp = np.transpose([x[:,col]] * x.shape[1])
+        sum_ = temp + x 
+
+        copy_x = np.concatenate((copy_x, sum_),axis = 1 )
+
+    # suppress sum in double    
+    final = np.unique(copy_x, axis = 1 )
+    # standardize and suppress same colomn ( colomns sum by themselves are supress) 
+    final = standardize_fill_nan(final)
+    final = np.unique(final,axis = 1)
+    return final 
+    
 # ***************************************************
 # Regularized logistic regression additional function
 # ***************************************************
@@ -317,11 +341,9 @@ def cross_validation_lambdas_with_set(y_tr, x_tr,y_te, x_te,lambdas, gamma):
     
     return best_lambda, best_loss
 
-def cross_validation_lambdas_with_set(y_tr, x_tr,y_te, x_te,lambdas, gamma): 
+def cross_validation_degree(y_tr, x_tr, y_te, x_te, lambdas, gamma): 
     
     seed = 12
-   # k_indices = build_k_indices(y, k_fold, seed)
-    # define lists to store the loss of training data and test data
     loss_tr = []
     loss_te = []
     initial_w = np.full(x_tr.shape[1], 0.1)
@@ -341,21 +363,39 @@ def cross_validation_lambdas_with_set(y_tr, x_tr,y_te, x_te,lambdas, gamma):
     best_loss = loss_te[index_min]
     best_lambda = lambdas[index_min]
     print(" The best lambda_ is ", best_lambda, " with a loss of  ", best_loss)
-    cross_validation_visualization(lambdas, loss_tr, loss_te)
+    #cross_validation_visualization(lambdas, loss_tr, loss_te)
     
-    return best_lambda, best_loss
+    return best_lambda, best_loss, loss_tr, loss_te
 
 def cross_val_find_lambda_degree(y_tr, x_tr, y_te, x_te,lambdas, gamma, degrees): 
     
-    for degree in degrees : 
+    # create array to store loss depending on the lambdas and the degrees.
+    loss_tr_deg = np.zeros((lambdas.shape[0], degrees.shape[0]))
+    loss_te_deg = np.zeros((lambdas.shape[0], degrees.shape[0])) 
+    
+    # create array to store best loss depending on the best lambdas and the degrees.
+    best_lambda_deg  = np.zeros(degrees.shape[0]) 
+    best_loss_deg = np.zeros(degrees.shape[0]) 
+    
+    for ind, degree in enumerate(degrees) : 
         
         #polynomial expansion 
         x_tr_p = build_poly(x_tr, degree) 
         x_te_p = build_poly(x_te, degree) 
         
-        cross_validation_lambdas_with_set(y_tr, x_tr_p, y_te, x_te_p, lambdas, gamma)
+        best_lambda, best_loss, loss_tr, loss_te = cross_validation_degree(y_tr, x_tr_p, y_te, x_te_p, lambdas, gamma)
+        # store the result
+        loss_tr_deg[:, ind] = loss_tr
+        loss_te_deg[:, ind] = loss_te
+        best_lambda_deg[ind] = best_lambda
+        best_loss_deg[ind]= best_loss
         
+        print("For the degree ", degree, " we obtain the best lambda at ", 
+              best_lambda, " corresponding to a loss of ", best_loss)
+        
+    return loss_tr_deg, loss_te_deg, best_lambda_deg, best_loss_deg
 
+     
 
 # ***************************************************
 # Plot
@@ -421,7 +461,19 @@ def cross_validation_visualization(lambds, rmse_tr, rmse_te):
     plt.legend(loc=2)
     plt.grid(True)
     plt.savefig("cross_validation")
-
+    
+def plot_cross_validation_degree(lambdas, loss_tr, loss_te, degrees): 
+    
+    
+    fig, axs = plt.subplots(degrees.shape[0])
+    for ind, degre in enumerate(degrees) : 
+        axs[ind].semilogx(lambdas, loss_tr[ind], marker=".", color='b', label='train error')
+        axs[ind].semilogx(lambdas, loss_te[ind], marker=".", color='r', label='test error')
+        axs[ind].set_xlabel("lambda")
+        axs[ind].set_ylabel("Loss")
+        axs[ind].legend(loc=2)
+        axs[ind].grid(True)
+    
 
 def gradient_descent_visualization(
         gradient_losses, gradient_ws,
