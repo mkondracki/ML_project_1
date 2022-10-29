@@ -276,7 +276,7 @@ def cross_validation_degree_ (y, x, degrees, k_fold, lambdas, gamma):
         x_p = build_poly(x, degree)
         x_p = standardize(x_p)
         
-        best_lambda_deg, best_loss_deg = cross_validation_final(y, x_p, k_fold, lambdas, gamma)
+        best_lambda_deg, best_loss_deg, w = cross_validation_final(y, x_p, k_fold, lambdas, gamma)
         
         store_lambda = np.append(store_lambda, best_lambda_deg)
         store_loss = np.append(store_loss, best_loss_deg)
@@ -289,7 +289,7 @@ def cross_validation_degree_ (y, x, degrees, k_fold, lambdas, gamma):
     best_degree = degrees[index_min]
     
     print(" The best degree is ", best_degree, " with a lambda ", best_lambda)
-    return best_degree, best_lambda, best_loss
+    return best_degree, best_lambda, best_loss, w
         
 def cross_validation_final(y, x, k_fold, lambdas, gamma):
 
@@ -306,6 +306,7 @@ def cross_validation_final(y, x, k_fold, lambdas, gamma):
         
         store_tr_k = []
         store_te_k = []
+        store_w_k = []
         initial_w = np.full(x.shape[1], 0.1)
         for k in range(k_fold) : 
             print("Workin on fold : ", k)
@@ -326,9 +327,10 @@ def cross_validation_final(y, x, k_fold, lambdas, gamma):
             
             store_tr_k = np.append(store_tr_k, loss_tr_k)
             store_te_k = np.append(store_te_k, loss_te_k)
-        
+            
         loss_tr = np.append(loss_tr, np.mean(store_tr_k))
         loss_te = np.append(loss_te, np.mean(store_te_k))
+        store_w = ws
         print("The loss for training with lambda ", lambda_, "is  " , loss_tr[-1])
         print("The loss for testing with lambda ", lambda_, "is  " , loss_te[-1])
     index_min = np.argmin(loss_te)
@@ -337,7 +339,7 @@ def cross_validation_final(y, x, k_fold, lambdas, gamma):
     
     cross_validation_visualization(lambdas, loss_tr, loss_te)
        
-    return best_lambda, best_loss
+    return best_lambda, best_loss, store_w
 
 
 def cross_validation(y, x, k_indices, k, lambda_, gamma):
@@ -371,7 +373,7 @@ def cross_validation_multiply_features(y, x, k_fold,lambda_, gamma):
  
     store_tr_k = []
     store_te_k = []
-    
+    store_w = []
     x = multiply_features(x) 
     x = standardize(x)
     initial_w = np.full(x.shape[1], 0.1)
@@ -395,10 +397,11 @@ def cross_validation_multiply_features(y, x, k_fold,lambda_, gamma):
 
         store_tr_k = np.append(store_tr_k, loss_tr_k)
         store_te_k = np.append(store_te_k, loss_te_k)
-
+    
     loss_tr = np.mean(store_tr_k)
     loss_te = np.mean(store_te_k)
-    return loss_tr, loss_te
+    best_w = ws
+    return loss_tr, loss_te, best_w
 
 def cross_validation_lambdas(y, x,  k_fold, lambdas, gamma): 
     
