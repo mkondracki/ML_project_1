@@ -71,7 +71,7 @@ def standardize(x) :
     idx = np.argwhere(np.all(x== value, axis=0))
     x = np.delete(x, idx, axis=1)   
     x_norm = np.ones(x.shape)
-    for k in range(1, x.shape[1]):
+    for k in range(x.shape[1]):
         x_norm[:,k] = standardize_col(x[:,k])
     return x_norm
     
@@ -266,12 +266,30 @@ def build_k_indices(y, k_fold, seed):
 
 def cross_validation_degree_ (y, x, degrees, k_fold, lambdas, gamma): 
     
+    store_lambda = []
+    store_loss = []
+    
     for ind, degree in enumerate(degrees): 
-        print(" Working on degree ", degree)
+        
+        print("Working on degree ", degree)
+        
         x_p = build_poly(x, degree)
         x_p = standardize(x_p)
-        best_lambda, best_loss = cross_validation_final(y, x_p,k_fold, lambdas, gamma)
-        print("For polynomial expansion up to degree %.f, the choice of lambda which leads to the best loss is %.5f with a test loss of %.3f" % (degree, best_lambda, best_loss))
+        
+        best_lambda_deg, best_loss_deg = cross_validation_final(y, x_p, k_fold, lambdas, gamma)
+        
+        store_lambda = np.append(store_lambda, best_lambda_deg)
+        store_loss = np.append(store_loss, best_loss_deg)
+        
+        print("For polynomial expansion up to degree %.f, the choice of lambda which leads to the best loss is %.5f with a test loss of %.3f" % (degree, best_lambda_deg, best_loss_deg))
+        
+    index_min = np.argmin(store_loss)
+    best_loss = store_loss[index_min]
+    best_lambda = lambdas[index_min]
+    best_degree = degrees[index_min]
+    
+    print(" The best degree is ", best_degree, " with a lambda ", best_lambda)
+    return best_degree, best_lambda, best_loss
         
 def cross_validation_final(y, x, k_fold, lambdas, gamma):
 
@@ -288,8 +306,9 @@ def cross_validation_final(y, x, k_fold, lambdas, gamma):
         
         store_tr_k = []
         store_te_k = []
-        
+        initial_w = np.full(x.shape[1], 0.1)
         for k in range(k_fold) : 
+            print("Workin on fold : ", k)
             ind_te = k_indices[k]
             ind_tr = k_indices[~(np.arange(k_indices.shape[0]) == k)]
             ind_tr = ind_tr.reshape(-1)
@@ -301,6 +320,7 @@ def cross_validation_final(y, x, k_fold, lambdas, gamma):
 
             ws,losses = reg_logistic_regression(y_tr, x_tr, lambda_, initial_w, max_iters, gamma)
             
+            initial_w = ws
             loss_tr_k = compute_loss(y_tr, x_tr ,ws, 'negative_log_likelihood')
             loss_te_k = compute_loss(y_te, x_te ,ws, 'negative_log_likelihood')
             
@@ -309,14 +329,14 @@ def cross_validation_final(y, x, k_fold, lambdas, gamma):
         
         loss_tr = np.append(loss_tr, np.mean(store_tr_k))
         loss_te = np.append(loss_te, np.mean(store_te_k))
-        print("The loss for lambda ", lambda_, "is  " , loss_te[-1])
+        print("The loss for training with lambda ", lambda_, "is  " , loss_tr[-1])
+        print("The loss for testing with lambda ", lambda_, "is  " , loss_te[-1])
     index_min = np.argmin(loss_te)
     best_loss = loss_te[index_min]
     best_lambda = lambdas[index_min]
     
-    #cross_validation_visualization(lambdas, rmse_tr, rmse_te)
-    
-    
+    cross_validation_visualization(lambdas, loss_tr, loss_te)
+       
     return best_lambda, best_loss
 
 
@@ -341,6 +361,43 @@ def cross_validation(y, x, k_indices, k, lambda_, gamma):
     loss_tr =  compute_loss(y_tr, x_tr ,ws, 'negative_log_likelihood')
     loss_te =  compute_loss(y_te, x_te ,ws, 'negative_log_likelihood')
 
+    return loss_tr, loss_te
+
+def cross_validation_multiply_features(y, x, k_fold,lambda_, gamma):
+    
+    seed = 12
+    max_iters = 1000
+    k_indices = build_k_indices(y, k_fold, seed)
+ 
+    store_tr_k = []
+    store_te_k = []
+    
+    x = multiply_features(x) 
+    x = standardize(x)
+    initial_w = np.full(x.shape[1], 0.1)
+    
+    for k in range(k_fold) : 
+        print("Workin on fold : ", k)
+        ind_te = k_indices[k]
+        ind_tr = k_indices[~(np.arange(k_indices.shape[0]) == k)]
+        ind_tr = ind_tr.reshape(-1)
+
+        x_te  = x[ind_te]
+        x_tr = x[ind_tr]
+        y_te  = y[ind_te]
+        y_tr = y[ind_tr]
+
+        ws,losses = reg_logistic_regression(y_tr, x_tr, lambda_, initial_w, max_iters, gamma)
+
+        initial_w = ws
+        loss_tr_k = compute_loss(y_tr, x_tr ,ws, 'negative_log_likelihood')
+        loss_te_k = compute_loss(y_te, x_te ,ws, 'negative_log_likelihood')
+
+        store_tr_k = np.append(store_tr_k, loss_tr_k)
+        store_te_k = np.append(store_te_k, loss_te_k)
+
+    loss_tr = np.mean(store_tr_k)
+    loss_te = np.mean(store_te_k)
     return loss_tr, loss_te
 
 def cross_validation_lambdas(y, x,  k_fold, lambdas, gamma): 
