@@ -3,7 +3,6 @@ import matplotlib.pyplot as plt
 import implementations
 from implementations import *
 
-
 # ***************************************************
 # Load data
 # ***************************************************
@@ -196,12 +195,15 @@ def reg_log_find_gamma(y_tr, x_tr, lambda_,initial_w, gamma, max_iters):
 # ***************************************************
 # Search gamma 
 # ***************************************************
-
+      
 def search_gamma(y_tr, x_tr, lambda_, initial_w, max_iters, fonction_to_optimize, start_gamma, end_gamma, number) :
-     """Search best gamma for a fonction 
+    """Search best gamma for a fonction 
+
     Returns : 
-        gamma_tab : array, contains the gamma that have been test 
-        losses_tab : array, contains the corresponding loss.
+
+    gamma_tab : array, contains the gamma that have been test 
+
+    losses_tab : array, contains the corresponding loss.
     """
     gamma_tab=np.linspace(start_gamma, end_gamma, number)
     losses_tab=[]
@@ -220,6 +222,7 @@ def search_gamma(y_tr, x_tr, lambda_, initial_w, max_iters, fonction_to_optimize
 # ***************************************************
 
 def build_k_indices(y, k_fold, seed):
+    
     """Build k indices for k_fold
     Returns :             
         A 2D array of shape=(k_fold, N/k_fold) that indicates the data indices for each fold
@@ -246,14 +249,12 @@ def cross_validation(y, x, k_indices, k, lambda_, gamma):
     y_tr = y[ind_tr]
     
     initial_w = np.full(x_tr.shape[1], 0.1)
-    # ridge regression
-    for i in range(4) : 
-        ws,losses = reg_logistic_regression(y_tr, x_tr, lambda_, initial_w, max_iters, gamma)
-        initial_w = ws[-1]
-
+    # ridge regression 
+    ws,losses = reg_logistic_regression(y_tr, x_tr, lambda_, initial_w, max_iters, gamma)
+    #initial_w = ws[-1]
     # calculate the loss for train and test data
-    loss_tr =  compute_loss(y_tr, x_tr ,ws[-1], 'negative_log_likelihood')
-    loss_te =  compute_loss(y_te, x_te ,ws[-1], 'negative_log_likelihood')
+    loss_tr =  compute_loss(y_tr, x_tr ,ws, 'negative_log_likelihood')
+    loss_te =  compute_loss(y_te, x_te ,ws, 'negative_log_likelihood')
 
     return loss_tr, loss_te
 
@@ -285,6 +286,76 @@ def cross_validation_lambdas(y, x,  k_fold, lambdas, gamma):
     cross_validation_visualization(lambdas, loss_tr, loss_te)
     
     return best_lambda, best_loss
+
+def cross_validation_lambdas_with_set(y_tr, x_tr,y_te, x_te,lambdas, gamma): 
+    
+    seed = 12
+   # k_indices = build_k_indices(y, k_fold, seed)
+    # define lists to store the loss of training data and test data
+    loss_tr = []
+    loss_te = []
+    initial_w = np.full(x_tr.shape[1], 0.1)
+    max_iters = 1000 
+    for ind, lambda_ in enumerate(lambdas):
+        
+        ws,losses = reg_logistic_regression(y_tr, x_tr, lambda_, initial_w, max_iters, gamma)
+
+        # calculate the loss for train and test data
+        loss_tr_temp =  compute_loss(y_tr, x_tr ,ws, 'negative_log_likelihood')
+        loss_te_temp =  compute_loss(y_te, x_te ,ws, 'negative_log_likelihood')
+        
+        print(" Loss of training set for ", lambda_, " is ", loss_tr_temp)
+        print(" Loss of testing set for ", lambda_, " is ", loss_te_temp)
+        loss_tr = np.append(loss_tr, np.mean(loss_tr_temp))
+        loss_te = np.append(loss_te, np.mean(loss_te_temp))
+           
+    index_min = np.argmin(loss_te)
+    best_loss = loss_te[index_min]
+    best_lambda = lambdas[index_min]
+    print(" The best lambda_ is ", best_lambda, " with a loss of  ", best_loss)
+    cross_validation_visualization(lambdas, loss_tr, loss_te)
+    
+    return best_lambda, best_loss
+
+def cross_validation_lambdas_with_set(y_tr, x_tr,y_te, x_te,lambdas, gamma): 
+    
+    seed = 12
+   # k_indices = build_k_indices(y, k_fold, seed)
+    # define lists to store the loss of training data and test data
+    loss_tr = []
+    loss_te = []
+    initial_w = np.full(x_tr.shape[1], 0.1)
+    max_iters = 1000 
+    for ind, lambda_ in enumerate(lambdas):
+        
+        ws,losses = reg_logistic_regression(y_tr, x_tr, lambda_, initial_w, max_iters, gamma)
+
+        # calculate the loss for train and test data
+        loss_tr_temp =  compute_loss(y_tr, x_tr ,ws, 'negative_log_likelihood')
+        loss_te_temp =  compute_loss(y_te, x_te ,ws, 'negative_log_likelihood')
+        
+        loss_tr = np.append(loss_tr, np.mean(loss_tr_temp))
+        loss_te = np.append(loss_te, np.mean(loss_te_temp))
+           
+    index_min = np.argmin(loss_te)
+    best_loss = loss_te[index_min]
+    best_lambda = lambdas[index_min]
+    print(" The best lambda_ is ", best_lambda, " with a loss of  ", best_loss)
+    cross_validation_visualization(lambdas, loss_tr, loss_te)
+    
+    return best_lambda, best_loss
+
+def cross_val_find_lambda_degree(y_tr, x_tr, y_te, x_te,lambdas, gamma, degrees): 
+    
+    for degree in degrees : 
+        
+        #polynomial expansion 
+        x_tr_p = build_poly(x_tr, degree) 
+        x_te_p = build_poly(x_te, degree) 
+        
+        cross_validation_lambdas_with_set(y_tr, x_tr_p, y_te, x_te_p, lambdas, gamma)
+        
+
 
 # ***************************************************
 # Plot
@@ -345,8 +416,7 @@ def cross_validation_visualization(lambds, rmse_tr, rmse_te):
     plt.semilogx(lambds, rmse_tr, marker=".", color='b', label='train error')
     plt.semilogx(lambds, rmse_te, marker=".", color='r', label='test error')
     plt.xlabel("lambda")
-    plt.ylabel("r mse")
-    #plt.xlim(1e-4, 1)
+    plt.ylabel("Loss")
     plt.title("cross validation")
     plt.legend(loc=2)
     plt.grid(True)

@@ -24,9 +24,13 @@ def batch_iter(y, tx, batch_size, num_batches=1, shuffle=True):
             
 def compute_loss(y, tx, w,loss_type):
 
+    assert y.shape[0] == tx.shape[0]
+    assert tx.shape[1] == w.shape[0]
+    
     loss=0.0
     if loss_type.lower() == 'negative_log_likelihood':
-        temp = tx@w
+
+        temp = tx.dot(w)
         temp_max = temp
         temp_min = temp 
         temp_max[temp < -10 ]= -10 
@@ -148,10 +152,10 @@ def ridge_regression(y, tx, lambda_):
     return w,loss[0,0]
 
 
-def logistic_regression(y, tx, initial_w,max_iters, gamma):
+def logistic_regression(y, tx, initial_w, max_iters, gamma):
     
     # init parameters
-    threshold = 1e-8
+    threshold = 10**(-8)
     ws = [initial_w]
     losses = []
     w = initial_w
@@ -223,8 +227,8 @@ def reg_logistic_regression(y, tx, lambda_, initial_w, max_iters, gamma):
             losses.append(loss)
 
             # converge criterion
-            if (iter%100)==0 :
-                print("iteration : ", iter, " , loss : ", loss)
+            #if (iter%100)==0 :
+              #  print("iteration : ", iter, " , loss : ", loss)
             if len(losses) > 1 and np.abs(losses[-1] - losses[-2]) < threshold:
                 break
     else:
