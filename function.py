@@ -49,10 +49,6 @@ def put_nan(x):
     """Fill the -999.000 values with np.nan"""
     return np.where(x==-999.000, np.nan, x)
 
-def standardize(x):
-    """Standardize the original data set."""
-    return (x - np.nanmean(x)) / np.nanstd(x)
-
 def fill_nan(x_nan, median_x):
     """Fill an array x_nan with the median of it"""
     x_filled = np.zeros(x_nan.shape)
@@ -60,19 +56,28 @@ def fill_nan(x_nan, median_x):
         x_filled[:,j] = np.where(np.isnan(x_nan[:,j]), median_x[j], x_nan[:,j])
     return x_filled
 
-def standardize_fill_nan(x): 
-    x_norm = np.ones(x.shape)
-    for k in range(1, x.shape[1]):
-        x_norm[:,k] = standardize(x[:,k])
-    x_median = np.nanmedian(x_norm, axis=0)
-    x_filled = fill_nan(x_norm, x_median)
+def replace_nan_by_median(x): 
+    """ filled nan values by median"""
+    x_nan = put_nan(x) 
+    x_median = np.nanmedian(x_nan, axis=0)
+    x_filled = fill_nan(x_nan, x_median)
     return x_filled
 
-def fill_nan_value(x_nan, value):
-    """Fill an array x_nan with the 0"""
-    x_filled = np.zeros(x_nan.shape)
-    x_filled = np.where(np.isnan(x_nan), value, x_nan)
-    return x_filled
+def standardize(x) :
+    """ standardize matrix """
+
+    # suppress col with same values ( useless + makes nan values if value is 0 ) 
+    value = x[0,:]
+    idx = np.argwhere(np.all(x== value, axis=0))
+    x = np.delete(x, idx, axis=1)   
+    x_norm = np.ones(x.shape)
+    for k in range(1, x.shape[1]):
+        x_norm[:,k] = standardize_col(x[:,k])
+    return x_norm
+    
+def standardize_col(x):
+    """Standardize the columns of  data set."""
+    return (x - np.nanmean(x)) / np.nanstd(x)
 
 def proportions_nan (x, threshold): 
     """Calculate the proportion of nan values for each columns and the indices 
@@ -259,6 +264,62 @@ def build_k_indices(y, k_fold, seed):
     
     return np.array(k_indices)
 
+def cross_validation_degree_ (y, x, degrees, k_fold, lambdas, gamma): 
+    
+    for ind, degree in enumerate(degrees): 
+        print(" Working on degree ", degree)
+        x_p = build_poly(x, degree)
+        x_p = standardize(x_p)
+        best_lambda, best_loss = cross_validation_final(y, x_p,k_fold, lambdas, gamma)
+        print("For polynomial expansion up to degree %.f, the choice of lambda which leads to the best loss is %.5f with a test loss of %.3f" % (degree, best_lambda, best_loss))
+        
+def cross_validation_final(y, x, k_fold, lambdas, gamma):
+
+    max_iters = 1000
+    seed = 12
+    # split data in k fold
+    k_indices = build_k_indices(y, k_fold, seed)
+    initial_w = np.full(x.shape[1], 0.1)
+    
+    loss_tr = []
+    loss_te = []
+
+    for ind, lambda_ in enumerate(lambdas): 
+        
+        store_tr_k = []
+        store_te_k = []
+        
+        for k in range(k_fold) : 
+            ind_te = k_indices[k]
+            ind_tr = k_indices[~(np.arange(k_indices.shape[0]) == k)]
+            ind_tr = ind_tr.reshape(-1)
+
+            x_te  = x[ind_te]
+            x_tr = x[ind_tr]
+            y_te  = y[ind_te]
+            y_tr = y[ind_tr]
+
+            ws,losses = reg_logistic_regression(y_tr, x_tr, lambda_, initial_w, max_iters, gamma)
+            
+            loss_tr_k = compute_loss(y_tr, x_tr ,ws, 'negative_log_likelihood')
+            loss_te_k = compute_loss(y_te, x_te ,ws, 'negative_log_likelihood')
+            
+            store_tr_k = np.append(store_tr_k, loss_tr_k)
+            store_te_k = np.append(store_te_k, loss_te_k)
+        
+        loss_tr = np.append(loss_tr, np.mean(store_tr_k))
+        loss_te = np.append(loss_te, np.mean(store_te_k))
+        print("The loss for lambda ", lambda_, "is  " , loss_te[-1])
+    index_min = np.argmin(loss_te)
+    best_loss = loss_te[index_min]
+    best_lambda = lambdas[index_min]
+    
+    #cross_validation_visualization(lambdas, rmse_tr, rmse_te)
+    
+    
+    return best_lambda, best_loss
+
+
 def cross_validation(y, x, k_indices, k, lambda_, gamma):
 
     max_iters = 1000
@@ -320,6 +381,7 @@ def cross_validation_lambdas_with_set(y_tr, x_tr,y_te, x_te,lambdas, gamma):
     loss_te = []
     initial_w = np.full(x_tr.shape[1], 0.1)
     max_iters = 1000 
+    
     for ind, lambda_ in enumerate(lambdas):
         
         ws,losses = reg_logistic_regression(y_tr, x_tr, lambda_, initial_w, max_iters, gamma)
