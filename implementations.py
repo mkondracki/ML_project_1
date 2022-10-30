@@ -29,14 +29,16 @@ def compute_loss(y, tx, w,loss_type):
     
     loss=0.0
     if loss_type.lower() == 'negative_log_likelihood':
-
-        temp = tx.dot(w)
-        temp_max = temp
-        temp_min = temp 
-        temp_max[temp < -10 ]= -10 
-        temp_min[temp> 10 ]= 10    
-        loss = np.sum(y*np.log(sigmoid(temp_max))+ (1 - y)*np.log(1 - sigmoid(temp_min))) / (-y.shape[0])
-        
+    
+       # temp = tx.dot(w)
+        print("coucou")
+       # temp_max = temp
+       # temp_min = temp 
+       # temp_max[temp < -10 ]= -10 
+       # temp_min[temp> 10 ]= 10    
+       # loss = np.sum(y*np.log(sigmoid(temp_max))+ (1 - y)*np.log(1 - sigmoid(temp_min))) / (-y.shape[0])
+        loss = np.sum(y*np.log(sigmoid(tx.dot(w)))+ (1 - y)*np.log(1 - sigmoid(tx.dot(w)))) / (-y.shape[0])
+        print(loss)
         return loss
     
     elif loss_type.lower() == 'mse':  
@@ -257,13 +259,13 @@ def reg_logistic_regression(y, tx, lambda_, initial_w, max_iters, gamma):
     ws = [initial_w]
     losses = []
     w = initial_w
-
+    max_iters = max_iters + 1 
     # start the logistic regression
     if max_iters > 0:
         for iter in range(max_iters):
             # get loss and update w.
             loss, w = learning_by_penalized_gradient(y, tx, w, gamma, lambda_)
-
+            print(iter)
             ws.append(w)
             losses.append(loss)
 
