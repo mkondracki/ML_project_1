@@ -188,26 +188,6 @@ def build_poly(x, degree):
 
     return poly   
 
-def learning_by_penalized_gradient(y, tx, w, gamma, lambda_):
-    """
-    Args:
-        y:  shape=(N, 1)
-        tx: shape=(N, D)
-        w:  shape=(D, 1)
-        lambda_: scalar
-
-    Returns:
-        loss: scalar numb'/er
-        gradient: shape=(D, 1)
-    """
-    loss = compute_loss(y, tx, w,  "negative_log_likelihood")
-
-    gradient = compute_gradient(y, tx, w, "logistic") + 2 * lambda_ * w
-
-    w_new = w - gamma * gradient
-
-    return loss, w_new
-
 
 def reg_logistic_regression(y, tx, lambda_, initial_w, max_iters, gamma):
     
@@ -221,8 +201,12 @@ def reg_logistic_regression(y, tx, lambda_, initial_w, max_iters, gamma):
     if max_iters > 0:
         for iter in range(max_iters):
             # get loss and update w.
-            loss, w = learning_by_penalized_gradient(y, tx, w, gamma, lambda_)
+            #loss, w = learning_by_penalized_gradient(y, tx, w, gamma, lambda_)
+            gradient = compute_gradient(y, tx, w, "logistic") + 2 * lambda_ * w
+            w= w - gamma * gradient
 
+            loss = compute_loss(y, tx, w,  "negative_log_likelihood")
+           
             ws.append(w)
             losses.append(loss)
 
