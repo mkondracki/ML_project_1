@@ -7,3 +7,6 @@ Using the path "\Data\train.csv", Python notebook assumed that the datasets trai
 
 Function.py\
 It's an adjunct script that includes all the auxiliary functions required for cleaning the data and pre-processing them. Contains cross validation functionality as well as additional functions for determining best parameters.
+
+helpers.py\
+Consists of the essential functions for loading the data.
