@@ -1,2 +1,2 @@
-# ML_project_1
+# ML Project 1
 project 1
