@@ -89,7 +89,8 @@ def proportions_nan (x, threshold):
     return prop_nan, ind 
 
 def remove_low_variance(x, threshold): 
-
+    """Calculate the variance of each columns
+    remove the columns for which the variance is below the thresold."""
     var = np.var(x, axis = 0)
     index = np.array([i for i, v in enumerate(var) if v > threshold])
     x_new = x[:,index]
@@ -123,6 +124,7 @@ def build_poly(x, degree):
     return poly 
 
 def multiply_features (x) : 
+    """Multiply the features between each others."""
     v = x
     for col in range(x.shape[1]): 
         w = (x.T*x[:,col]).T 
@@ -131,7 +133,7 @@ def multiply_features (x) :
     return x_m
 
 def sum_features(x): 
-
+    """Sum the features between each others."""
     copy_x = x
     for col in range(x.shape[1]): 
         temp = np.transpose([x[:,col]] * x.shape[1])
@@ -264,19 +266,29 @@ def build_k_indices(y, k_fold, seed):
     
     return np.array(k_indices)
 
-def cross_validation_degree_ (y, x, degrees, k_fold, lambdas, gamma): 
-    
-    for ind, degree in enumerate(degrees): 
-        print(" Working on degree ", degree)
-        x_p = build_poly(x, degree)
-        x_p = standardize(x_p)
-        best_lambda, best_loss = cross_validation_final(y, x_p,k_fold, lambdas, gamma)
-        print("For polynomial expansion up to degree %.f, the choice of lambda which leads to the best loss is %.5f with a test loss of %.3f" % (degree, best_lambda, best_loss))
-        
-def cross_validation_final(y, x, k_fold, lambdas, gamma):
+def cross_validation(y, x, k_fold, params, gamma,  model_type):
+    """return the loss of ridge regression for a fold corresponding to k_indices
 
+        Args:
+            y:          shape=(N,)
+            x:          shape=(N,)
+            k_fold:     scalar, the fold nums)
+            params:     array, containing the parameter we want to evaluate.
+            gamma:      scalar, cf. ridge_regression
+            degree:     scalar, cf. build_poly()
+
+        Returns:
+            best_param: param which obtain the best loss
+            best_loss:  best loss on testing 
+            store_w:    last weight 
+            loss_tr:    array containig the loss on training set depending on param
+            loss_te:    array containig the loss on training set depending on param
+    """
+       
     max_iters = 1000
     seed = 12
+    batch_size = 50 
+    
     # split data in k fold
     k_indices = build_k_indices(y, k_fold, seed)
     initial_w = np.full(x.shape[1], 0.1)
@@ -284,12 +296,15 @@ def cross_validation_final(y, x, k_fold, lambdas, gamma):
     loss_tr = []
     loss_te = []
 
-    for ind, lambda_ in enumerate(lambdas): 
+    for ind, param in enumerate(params): 
         
         store_tr_k = []
         store_te_k = []
+        store_w_k = []
+        initial_w = np.full(x.shape[1], 0.1)
         
         for k in range(k_fold) : 
+            print("Workin on fold : ", k)
             ind_te = k_indices[k]
             ind_tr = k_indices[~(np.arange(k_indices.shape[0]) == k)]
             ind_tr = ind_tr.reshape(-1)
@@ -298,166 +313,93 @@ def cross_validation_final(y, x, k_fold, lambdas, gamma):
             x_tr = x[ind_tr]
             y_te  = y[ind_te]
             y_tr = y[ind_tr]
+            if model_type.lower() == 'gd':
+                #param is gamma
+                ws,losses = mean_squared_error_gd(y_tr, x_tr, initial_w, max_iters, param)
+                loss_tr_k = compute_loss(y_tr, x_tr ,ws[-1], 'mse')
+                loss_te_k = compute_loss(y_te, x_te ,ws[-1], 'mse')
+            if model_type.lower() == 'sgd':
+                #param is gamma 
+                ws,losses = mean_squared_error_sgd(y, tx, initial_w, batch_size, max_iters, param)
+                loss_tr_k = compute_loss(y_tr, x_tr ,ws[-1], 'mse')
+                loss_te_k = compute_loss(y_te, x_te ,ws[-1], 'mse')
+            if model_type.lower() == 'reg_logistic_regression':  
+                #param is lambda 
+                ws,losses = reg_logistic_regression(y_tr, x_tr, param, initial_w, max_iters, gamma)
+                loss_tr_k =  compute_loss(y_tr, x_tr ,ws, 'negative_log_likelihood')
+                loss_te_k =  compute_loss(y_te, x_te ,ws, 'negative_log_likelihood')
+                
+            initial_w = ws[-1]
 
-            ws,losses = reg_logistic_regression(y_tr, x_tr, lambda_, initial_w, max_iters, gamma)
-            
-            loss_tr_k = compute_loss(y_tr, x_tr ,ws, 'negative_log_likelihood')
-            loss_te_k = compute_loss(y_te, x_te ,ws, 'negative_log_likelihood')
-            
             store_tr_k = np.append(store_tr_k, loss_tr_k)
             store_te_k = np.append(store_te_k, loss_te_k)
-        
+            
         loss_tr = np.append(loss_tr, np.mean(store_tr_k))
         loss_te = np.append(loss_te, np.mean(store_te_k))
-        print("The loss for lambda ", lambda_, "is  " , loss_te[-1])
+        store_w = ws
+
     index_min = np.argmin(loss_te)
     best_loss = loss_te[index_min]
-    best_lambda = lambdas[index_min]
+    best_param = params[index_min]
     
-    #cross_validation_visualization(lambdas, rmse_tr, rmse_te)
-    
-    
-    return best_lambda, best_loss
+    return best_param, best_loss, store_w, loss_tr, loss_te
 
+def cross_validation_least_square(y, x, k_fold):
+    """return the loss of least square for a fold corresponding to k_indices
 
-def cross_validation(y, x, k_indices, k, lambda_, gamma):
+        Args:
+            y:          shape=(N,)
+            x:          shape=(N,)
+            k_fold:     scalar, the fold nums)
+           
+        Returns:
 
+            store_w:    last weight 
+            loss_tr:    array containig the loss on training set depending on param
+            loss_te:    array containig the loss on training set depending on param
+    """
     max_iters = 1000
-    
-    ind_te = k_indices[k]
-    ind_tr = k_indices[~(np.arange(k_indices.shape[0]) == k)]
-    ind_tr = ind_tr.reshape(-1)
-
-    x_te  = x[ind_te]
-    x_tr = x[ind_tr]
-    y_te  = y[ind_te]
-    y_tr = y[ind_tr]
-    
-    initial_w = np.full(x_tr.shape[1], 0.1)
-    # ridge regression 
-    ws,losses = reg_logistic_regression(y_tr, x_tr, lambda_, initial_w, max_iters, gamma)
-    #initial_w = ws[-1]
-    # calculate the loss for train and test data
-    loss_tr =  compute_loss(y_tr, x_tr ,ws, 'negative_log_likelihood')
-    loss_te =  compute_loss(y_te, x_te ,ws, 'negative_log_likelihood')
-
-    return loss_tr, loss_te
-
-def cross_validation_lambdas(y, x,  k_fold, lambdas, gamma): 
-    
     seed = 12
+    
+    # split data in k fold
     k_indices = build_k_indices(y, k_fold, seed)
-    # define lists to store the loss of training data and test data
+    initial_w = np.full(x.shape[1], 0.1)
+    
     loss_tr = []
     loss_te = []
-    
-    for ind, lambda_ in enumerate(lambdas):
-        loss_tr_k = []
-        loss_te_k = []
         
-        for k in range(k_fold):
-            loss_tr_temp, loss_te_temp = cross_validation(y, x, k_indices, k, lambda_, gamma)
-            
-            loss_tr_k = np.append(loss_tr_k,loss_tr_temp)
-            loss_te_k = np.append(loss_te_k,loss_te_temp)
-            
-        loss_tr = np.append(loss_tr, np.mean(loss_tr_k))
-        loss_te = np.append(loss_te, np.mean(loss_te_k))
+    store_tr_k = []
+    store_te_k = []
 
-    index_min = np.argmin(loss_te)
-    best_loss = loss_te[index_min]
-    best_lambda = lambdas[index_min]
-    
-    cross_validation_visualization(lambdas, loss_tr, loss_te)
-    
-    return best_lambda, best_loss
+    initial_w = np.full(x.shape[1], 0.1)
 
-def cross_validation_lambdas_with_set(y_tr, x_tr,y_te, x_te,lambdas, gamma): 
-    
-    seed = 12
-   # k_indices = build_k_indices(y, k_fold, seed)
-    # define lists to store the loss of training data and test data
-    loss_tr = []
-    loss_te = []
-    initial_w = np.full(x_tr.shape[1], 0.1)
-    max_iters = 1000 
-    
-    for ind, lambda_ in enumerate(lambdas):
-        
-        ws,losses = reg_logistic_regression(y_tr, x_tr, lambda_, initial_w, max_iters, gamma)
+    for k in range(k_fold) : 
+        print("Workin on fold : ", k)
+        ind_te = k_indices[k]
+        ind_tr = k_indices[~(np.arange(k_indices.shape[0]) == k)]
+        ind_tr = ind_tr.reshape(-1)
 
-        # calculate the loss for train and test data
-        loss_tr_temp =  compute_loss(y_tr, x_tr ,ws, 'negative_log_likelihood')
-        loss_te_temp =  compute_loss(y_te, x_te ,ws, 'negative_log_likelihood')
+        x_te  = x[ind_te]
+        x_tr = x[ind_tr]
+        y_te  = y[ind_te]
+        y_tr = y[ind_tr]
         
-        print(" Loss of training set for ", lambda_, " is ", loss_tr_temp)
-        print(" Loss of testing set for ", lambda_, " is ", loss_te_temp)
-        loss_tr = np.append(loss_tr, np.mean(loss_tr_temp))
-        loss_te = np.append(loss_te, np.mean(loss_te_temp))
-           
-    index_min = np.argmin(loss_te)
-    best_loss = loss_te[index_min]
-    best_lambda = lambdas[index_min]
-    print(" The best lambda_ is ", best_lambda, " with a loss of  ", best_loss)
-    cross_validation_visualization(lambdas, loss_tr, loss_te)
-    
-    return best_lambda, best_loss
 
-def cross_validation_degree(y_tr, x_tr, y_te, x_te, lambdas, gamma): 
-    
-    seed = 12
-    loss_tr = []
-    loss_te = []
-    initial_w = np.full(x_tr.shape[1], 0.1)
-    max_iters = 1000 
-    for ind, lambda_ in enumerate(lambdas):
+        #param is gamma 
+        ws,losses = least_squares(y, tx, initial_w)
+        loss_tr_k = compute_loss(y_tr, x_tr ,ws, 'mse')
+        loss_te_k = compute_loss(y_te, x_te ,ws, 'mse')
         
-        ws,losses = reg_logistic_regression(y_tr, x_tr, lambda_, initial_w, max_iters, gamma)
+        initial_w = ws
 
-        # calculate the loss for train and test data
-        loss_tr_temp =  compute_loss(y_tr, x_tr ,ws, 'negative_log_likelihood')
-        loss_te_temp =  compute_loss(y_te, x_te ,ws, 'negative_log_likelihood')
-        
-        loss_tr = np.append(loss_tr, np.mean(loss_tr_temp))
-        loss_te = np.append(loss_te, np.mean(loss_te_temp))
-           
-    index_min = np.argmin(loss_te)
-    best_loss = loss_te[index_min]
-    best_lambda = lambdas[index_min]
-    print(" The best lambda_ is ", best_lambda, " with a loss of  ", best_loss)
-    #cross_validation_visualization(lambdas, loss_tr, loss_te)
-    
-    return best_lambda, best_loss, loss_tr, loss_te
+        store_tr_k = np.append(store_tr_k, loss_tr_k)
+        store_te_k = np.append(store_te_k, loss_te_k)
 
-def cross_val_find_lambda_degree(y_tr, x_tr, y_te, x_te,lambdas, gamma, degrees): 
+    loss_tr = np.mean(store_tr_k)
+    loss_te = np.mean(store_te_k)
+    store_w = ws
     
-    # create array to store loss depending on the lambdas and the degrees.
-    loss_tr_deg = np.zeros((lambdas.shape[0], degrees.shape[0]))
-    loss_te_deg = np.zeros((lambdas.shape[0], degrees.shape[0])) 
-    
-    # create array to store best loss depending on the best lambdas and the degrees.
-    best_lambda_deg  = np.zeros(degrees.shape[0]) 
-    best_loss_deg = np.zeros(degrees.shape[0]) 
-    
-    for ind, degree in enumerate(degrees) : 
-        
-        #polynomial expansion 
-        x_tr_p = build_poly(x_tr, degree) 
-        x_te_p = build_poly(x_te, degree) 
-        
-        best_lambda, best_loss, loss_tr, loss_te = cross_validation_degree(y_tr, x_tr_p, y_te, x_te_p, lambdas, gamma)
-        # store the result
-        loss_tr_deg[:, ind] = loss_tr
-        loss_te_deg[:, ind] = loss_te
-        best_lambda_deg[ind] = best_lambda
-        best_loss_deg[ind]= best_loss
-        
-        print("For the degree ", degree, " we obtain the best lambda at ", 
-              best_lambda, " corresponding to a loss of ", best_loss)
-        
-    return loss_tr_deg, loss_te_deg, best_lambda_deg, best_loss_deg
-
-     
+    return store_w, loss_tr, loss_te
 
 # ***************************************************
 # Plot
@@ -561,6 +503,7 @@ def gradient_descent_visualization(
     return fig
 
 def plot_loss_iteration(losses): 
+    """Visualize how the loss value changes until n_iter."""
     plt.figure(figsize = (9, 6))
     plt.plot(losses)
     plt.xlabel("Iteration", fontsize = 14)
