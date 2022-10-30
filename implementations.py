@@ -153,7 +153,8 @@ def ridge_regression(y, tx, lambda_):
 
 
 def logistic_regression(y, tx, initial_w, max_iters, gamma):
-    
+     """.
+    """
     # init parameters
     threshold = 10**(-8)
     ws = [initial_w]
@@ -190,7 +191,8 @@ def build_poly(x, degree):
 
 
 def reg_logistic_regression(y, tx, lambda_, initial_w, max_iters, gamma):
-    
+     """.
+    """
     # init parameters
     threshold = 1e-8
     ws = [initial_w]
