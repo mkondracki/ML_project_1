@@ -1,2 +1,4 @@
 # ML Project 1
+
+#WE SHOULD CHANGE THE NAME OF PYTHON NOTEBOOK TO RUN.ipynb
 project 1
