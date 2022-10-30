@@ -2,44 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import implementations
 from implementations import *
-
-# ***************************************************
-# Load data
-# ***************************************************
-
-def load_data_sample_sub(sub_sample=True, add_outlier=False):
-    """Load data and convert it to the metric system."""
-    path_dataset = "sample-submission.csv"
-    data = np.genfromtxt(
-        path_dataset, delimiter=",", skip_header=1, usecols=[0, 1])
-    id_ = data[:, 0]
-    prediction = data[:, 1]
-
-    return id_, prediction
-
-
-def load_data_sample(sub_sample=True, add_outlier=False):
-    """Load data and convert it to the metric system."""
-    path_dataset = "train.csv"
-    data = np.genfromtxt(
-        path_dataset, delimiter=",", skip_header=1)
-    id_ = data [:, 0]
-    features = data [:, 2:]
-    prediction = np.genfromtxt(
-        path_dataset, dtype= str, delimiter=",", skip_header=1, usecols=[1],
-        converters={0 :lambda x: 0 if x == 's' else 1})
-    
-    return id_, features, prediction
-
-def sample_data(y, x, seed, size_samples):
-    """sample from dataset."""
-    np.random.seed(seed)
-    num_observations = y.shape[0]
-    random_permuted_indices = np.random.permutation(num_observations)
-    y = y[random_permuted_indices]
-    x = x[random_permuted_indices]
-    return y[:size_samples], x[:size_samples]
-
+import seaborn as sns
 
 # ***************************************************
 # Preprocessing of the data
@@ -64,13 +27,9 @@ def replace_nan_by_median(x):
     return x_filled
 
 def standardize(x) :
-    """ standardize matrix """
-
-    # suppress col with same values ( useless + makes nan values if value is 0 ) 
-    value = x[0,:]
-    idx = np.argwhere(np.all(x== value, axis=0))
-    x = np.delete(x, idx, axis=1)   
-    x_norm = np.ones(x.shape)
+    """ standardize matrix and skipping the first column of 1's""" 
+    x_norm = np.zeros(x.shape)
+    #skip the first column of one's
     for k in range(1, x.shape[1]):
         x_norm[:,k] = standardize_col(x[:,k])
     return x_norm
@@ -86,22 +45,21 @@ def proportions_nan (x, threshold):
     for col in range(x.shape[1]): 
         prop_nan[col] = np.sum(np.isnan(x[:,col]))/x.shape[0]
     ind = np.where(prop_nan > threshold) 
-    return prop_nan, ind 
+    return prop_nan, ind[0] 
 
 def remove_low_variance(x, threshold): 
-    """Calculate the variance of each columns
-    remove the columns for which the variance is below the thresold."""
+
     var = np.var(x, axis = 0)
     index = np.array([i for i, v in enumerate(var) if v > threshold])
     x_new = x[:,index]
     return  var, x_new
 
-def train_test_split(y, x, ratio, seed ) : 
+def train_test_split(y, x, ratio_test, seed ) : 
     """Split the data in order to obtain training and testing set
     The data are splits according to the ratio ( as a percentage of desired size of testing set
     ex : ratio = 0.2 => 20% of testing set."""
     num_row = y.shape[0]
-    nb_index_test = int(ratio*num_row)
+    nb_index_test = int(ratio_test*num_row)
 
     np.random.seed(seed)
     indices = np.random.permutation(num_row)
@@ -123,30 +81,17 @@ def build_poly(x, degree):
         poly = np.c_[poly, np.power(x, deg)]
     return poly 
 
-def multiply_features (x) : 
-    """Multiply the features between each others."""
+def multiply_features(x) : 
     v = x
-    for col in range(x.shape[1]): 
-        w = (x.T*x[:,col]).T 
-        v = np.concatenate((v, w), axis = 1)
-    x_m = np.unique(v, axis = 1)
-    return x_m
+    for i in range(x.shape[1]): 
+        for j in range(x.shape[1]):
+            if(i!=j):
+                w = (x[:,i]*x[:,j]).T
+                print("w", w.shape)
+                print("v", v.shape)
+                v = np.hstack((v,w))
+    return v
 
-def sum_features(x): 
-    """Sum the features between each others."""
-    copy_x = x
-    for col in range(x.shape[1]): 
-        temp = np.transpose([x[:,col]] * x.shape[1])
-        sum_ = temp + x 
-
-        copy_x = np.concatenate((copy_x, sum_),axis = 1 )
-
-    # suppress sum in double    
-    final = np.unique(copy_x, axis = 1 )
-    # standardize and suppress same colomn ( colomns sum by themselves are supress) 
-    final = standardize_fill_nan(final)
-    final = np.unique(final,axis = 1)
-    return final 
     
 # ***************************************************
 # Regularized logistic regression additional function
@@ -266,29 +211,19 @@ def build_k_indices(y, k_fold, seed):
     
     return np.array(k_indices)
 
-def cross_validation(y, x, k_fold, params, gamma,  model_type):
-    """return the loss of ridge regression for a fold corresponding to k_indices
+def cross_validation_degree_ (y, x, degrees, k_fold, lambdas, gamma): 
+    
+    for ind, degree in enumerate(degrees): 
+        print(" Working on degree ", degree)
+        x_p = build_poly(x, degree)
+        x_p = standardize(x_p)
+        best_lambda, best_loss = cross_validation_final(y, x_p,k_fold, lambdas, gamma)
+        print("For polynomial expansion up to degree %.f, the choice of lambda which leads to the best loss is %.5f with a test loss of %.3f" % (degree, best_lambda, best_loss))
+        
+def cross_validation(y, x, k_fold, lambdas, gamma):
 
-        Args:
-            y:          shape=(N,)
-            x:          shape=(N,)
-            k_fold:     scalar, the fold nums)
-            params:     array, containing the parameter we want to evaluate.
-            gamma:      scalar, cf. ridge_regression
-            degree:     scalar, cf. build_poly()
-
-        Returns:
-            best_param: param which obtain the best loss
-            best_loss:  best loss on testing 
-            store_w:    last weight 
-            loss_tr:    array containig the loss on training set depending on param
-            loss_te:    array containig the loss on training set depending on param
-    """
-       
     max_iters = 1000
     seed = 12
-    batch_size = 50 
-    
     # split data in k fold
     k_indices = build_k_indices(y, k_fold, seed)
     initial_w = np.full(x.shape[1], 0.1)
@@ -296,15 +231,12 @@ def cross_validation(y, x, k_fold, params, gamma,  model_type):
     loss_tr = []
     loss_te = []
 
-    for ind, param in enumerate(params): 
+    for ind, lambda_ in enumerate(lambdas): 
         
         store_tr_k = []
         store_te_k = []
-        store_w_k = []
-        initial_w = np.full(x.shape[1], 0.1)
         
         for k in range(k_fold) : 
-            print("Workin on fold : ", k)
             ind_te = k_indices[k]
             ind_tr = k_indices[~(np.arange(k_indices.shape[0]) == k)]
             ind_tr = ind_tr.reshape(-1)
@@ -313,93 +245,143 @@ def cross_validation(y, x, k_fold, params, gamma,  model_type):
             x_tr = x[ind_tr]
             y_te  = y[ind_te]
             y_tr = y[ind_tr]
-            if model_type.lower() == 'gd':
-                #param is gamma
-                ws,losses = mean_squared_error_gd(y_tr, x_tr, initial_w, max_iters, param)
-                loss_tr_k = compute_loss(y_tr, x_tr ,ws[-1], 'mse')
-                loss_te_k = compute_loss(y_te, x_te ,ws[-1], 'mse')
-            if model_type.lower() == 'sgd':
-                #param is gamma 
-                ws,losses = mean_squared_error_sgd(y, tx, initial_w, batch_size, max_iters, param)
-                loss_tr_k = compute_loss(y_tr, x_tr ,ws[-1], 'mse')
-                loss_te_k = compute_loss(y_te, x_te ,ws[-1], 'mse')
-            if model_type.lower() == 'reg_logistic_regression':  
-                #param is lambda 
-                ws,losses = reg_logistic_regression(y_tr, x_tr, param, initial_w, max_iters, gamma)
-                loss_tr_k =  compute_loss(y_tr, x_tr ,ws, 'negative_log_likelihood')
-                loss_te_k =  compute_loss(y_te, x_te ,ws, 'negative_log_likelihood')
-                
-            initial_w = ws[-1]
 
+            ws,losses = reg_logistic_regression(y_tr, x_tr, lambda_, initial_w, max_iters, gamma)
+            
+            loss_tr_k = compute_loss(y_tr, x_tr ,ws, 'negative_log_likelihood')
+            loss_te_k = compute_loss(y_te, x_te ,ws, 'negative_log_likelihood')
+            
             store_tr_k = np.append(store_tr_k, loss_tr_k)
             store_te_k = np.append(store_te_k, loss_te_k)
-            
+        
         loss_tr = np.append(loss_tr, np.mean(store_tr_k))
         loss_te = np.append(loss_te, np.mean(store_te_k))
-        store_w = ws
+        print("The loss for lambda ", lambda_, "is  " , loss_te[-1])
+    index_min = np.argmin(loss_te)
+    best_loss = loss_te[index_min]
+    best_lambda = lambdas[index_min]
+    
+    #cross_validation_visualization(lambdas, rmse_tr, rmse_te)
+    
+    
+    return best_lambda, best_loss
+
+
+def  _lambdas(y, x,  k_fold, lambdas, gamma): 
+    
+    seed = 12
+    k_indices = build_k_indices(y, k_fold, seed)
+    # define lists to store the loss of training data and test data
+    loss_tr = []
+    loss_te = []
+    
+    for ind, lambda_ in enumerate(lambdas):
+        loss_tr_k = []
+        loss_te_k = []
+        
+        for k in range(k_fold):
+            loss_tr_temp, loss_te_temp = cross_validation(y, x, k_indices, k, lambda_, gamma)
+            
+            loss_tr_k = np.append(loss_tr_k,loss_tr_temp)
+            loss_te_k = np.append(loss_te_k,loss_te_temp)
+            
+        loss_tr = np.append(loss_tr, np.mean(loss_tr_k))
+        loss_te = np.append(loss_te, np.mean(loss_te_k))
 
     index_min = np.argmin(loss_te)
     best_loss = loss_te[index_min]
-    best_param = params[index_min]
+    best_lambda = lambdas[index_min]
     
-    return best_param, best_loss, store_w, loss_tr, loss_te
+    cross_validation_visualization(lambdas, loss_tr, loss_te)
+    
+    return best_lambda, best_loss
 
-def cross_validation_least_square(y, x, k_fold):
-    """return the loss of least square for a fold corresponding to k_indices
-
-        Args:
-            y:          shape=(N,)
-            x:          shape=(N,)
-            k_fold:     scalar, the fold nums)
-           
-        Returns:
-
-            store_w:    last weight 
-            loss_tr:    array containig the loss on training set depending on param
-            loss_te:    array containig the loss on training set depending on param
-    """
-    max_iters = 1000
+def cross_validation_lambdas_with_set(y_tr, x_tr,y_te, x_te,lambdas, gamma): 
+    
     seed = 12
-    
-    # split data in k fold
-    k_indices = build_k_indices(y, k_fold, seed)
-    initial_w = np.full(x.shape[1], 0.1)
-    
+   # k_indices = build_k_indices(y, k_fold, seed)
+    # define lists to store the loss of training data and test data
     loss_tr = []
     loss_te = []
-        
-    store_tr_k = []
-    store_te_k = []
-
-    initial_w = np.full(x.shape[1], 0.1)
-
-    for k in range(k_fold) : 
-        print("Workin on fold : ", k)
-        ind_te = k_indices[k]
-        ind_tr = k_indices[~(np.arange(k_indices.shape[0]) == k)]
-        ind_tr = ind_tr.reshape(-1)
-
-        x_te  = x[ind_te]
-        x_tr = x[ind_tr]
-        y_te  = y[ind_te]
-        y_tr = y[ind_tr]
-        
-
-        #param is gamma 
-        ws,losses = least_squares(y, tx, initial_w)
-        loss_tr_k = compute_loss(y_tr, x_tr ,ws, 'mse')
-        loss_te_k = compute_loss(y_te, x_te ,ws, 'mse')
-        
-        initial_w = ws
-
-        store_tr_k = np.append(store_tr_k, loss_tr_k)
-        store_te_k = np.append(store_te_k, loss_te_k)
-
-    loss_tr = np.mean(store_tr_k)
-    loss_te = np.mean(store_te_k)
-    store_w = ws
+    initial_w = np.full(x_tr.shape[1], 0.1)
+    max_iters = 1000 
     
-    return store_w, loss_tr, loss_te
+    for ind, lambda_ in enumerate(lambdas):
+        
+        ws,losses = reg_logistic_regression(y_tr, x_tr, lambda_, initial_w, max_iters, gamma)
+
+        # calculate the loss for train and test data
+        loss_tr_temp =  compute_loss(y_tr, x_tr ,ws, 'negative_log_likelihood')
+        loss_te_temp =  compute_loss(y_te, x_te ,ws, 'negative_log_likelihood')
+        
+        print(" Loss of training set for ", lambda_, " is ", loss_tr_temp)
+        print(" Loss of testing set for ", lambda_, " is ", loss_te_temp)
+        loss_tr = np.append(loss_tr, np.mean(loss_tr_temp))
+        loss_te = np.append(loss_te, np.mean(loss_te_temp))
+           
+    index_min = np.argmin(loss_te)
+    best_loss = loss_te[index_min]
+    best_lambda = lambdas[index_min]
+    print(" The best lambda_ is ", best_lambda, " with a loss of  ", best_loss)
+    cross_validation_visualization(lambdas, loss_tr, loss_te)
+    
+    return best_lambda, best_loss
+
+def cross_validation_degree(y_tr, x_tr, y_te, x_te, lambdas, gamma): 
+    
+    seed = 12
+    loss_tr = []
+    loss_te = []
+    initial_w = np.full(x_tr.shape[1], 0.1)
+    max_iters = 1000 
+    for ind, lambda_ in enumerate(lambdas):
+        
+        ws,losses = reg_logistic_regression(y_tr, x_tr, lambda_, initial_w, max_iters, gamma)
+
+        # calculate the loss for train and test data
+        loss_tr_temp =  compute_loss(y_tr, x_tr ,ws, 'negative_log_likelihood')
+        loss_te_temp =  compute_loss(y_te, x_te ,ws, 'negative_log_likelihood')
+        
+        loss_tr = np.append(loss_tr, np.mean(loss_tr_temp))
+        loss_te = np.append(loss_te, np.mean(loss_te_temp))
+           
+    index_min = np.argmin(loss_te)
+    best_loss = loss_te[index_min]
+    best_lambda = lambdas[index_min]
+    print(" The best lambda_ is ", best_lambda, " with a loss of  ", best_loss)
+    #cross_validation_visualization(lambdas, loss_tr, loss_te)
+    
+    return best_lambda, best_loss, loss_tr, loss_te
+
+def cross_val_find_lambda_degree(y_tr, x_tr, y_te, x_te,lambdas, gamma, degrees): 
+    
+    # create array to store loss depending on the lambdas and the degrees.
+    loss_tr_deg = np.zeros((lambdas.shape[0], degrees.shape[0]))
+    loss_te_deg = np.zeros((lambdas.shape[0], degrees.shape[0])) 
+    
+    # create array to store best loss depending on the best lambdas and the degrees.
+    best_lambda_deg  = np.zeros(degrees.shape[0]) 
+    best_loss_deg = np.zeros(degrees.shape[0]) 
+    
+    for ind, degree in enumerate(degrees) : 
+        
+        #polynomial expansion 
+        x_tr_p = build_poly(x_tr, degree) 
+        x_te_p = build_poly(x_te, degree) 
+        
+        best_lambda, best_loss, loss_tr, loss_te = cross_validation_degree(y_tr, x_tr_p, y_te, x_te_p, lambdas, gamma)
+        # store the result
+        loss_tr_deg[:, ind] = loss_tr
+        loss_te_deg[:, ind] = loss_te
+        best_lambda_deg[ind] = best_lambda
+        best_loss_deg[ind]= best_loss
+        
+        print("For the degree ", degree, " we obtain the best lambda at ", 
+              best_lambda, " corresponding to a loss of ", best_loss)
+        
+    return loss_tr_deg, loss_te_deg, best_lambda_deg, best_loss_deg
+
+     
 
 # ***************************************************
 # Plot
@@ -467,8 +449,7 @@ def cross_validation_visualization(lambds, rmse_tr, rmse_te):
     plt.savefig("cross_validation")
     
 def plot_cross_validation_degree(lambdas, loss_tr, loss_te, degrees): 
-    
-    
+   
     fig, axs = plt.subplots(degrees.shape[0])
     for ind, degre in enumerate(degrees) : 
         axs[ind].semilogx(lambdas, loss_tr[ind], marker=".", color='b', label='train error')
@@ -501,13 +482,33 @@ def gradient_descent_visualization(
     ax2.plot(pred_x, pred_y, 'r')
 
     return fig
-
-def plot_loss_iteration(losses): 
-    """Visualize how the loss value changes until n_iter."""
-    plt.figure(figsize = (9, 6))
-    plt.plot(losses)
-    plt.xlabel("Iteration", fontsize = 14)
-    plt.ylabel("Losses", fontsize = 14)
-    plt.title("Losses vs Iteration", fontsize = 14)
-    plt.tight_layout()
+    
+    
+def plot_features(x, names) : 
+    plt.figure(figsize=(30, 5*np.int32(np.ceil(np.shape(x)[1]/3))))
+    for i in range(np.shape(x)[1]):
+        plt.subplot(np.int32(np.ceil(np.shape(x)[1]/3)), 3, i+1)
+        sns.histplot(x[:, i], bins=50, color='green')
+        plt.title(names[i]+" : %d" %i)
     plt.show()
+    return 1
+
+def plot_detected_features(x, y, names) : 
+    plt.figure(figsize=(30, 5*np.int32(np.ceil(np.shape(x)[1]/3))))
+    for i in range(np.shape(x)[1]):
+        plt.subplot(np.int32(np.ceil(np.shape(x)[1]/3)), 3, i+1)
+        
+        x0 = x[np.where(y==0), i][0]
+        ax0 = sns.histplot(x0, bins=50, color='red', alpha=0.7, label='not detected')
+        ax0.axvline(np.mean(x0), color='red', lw = 4)
+        ax0.axvline(np.median(x0), color='red', ls='--', lw = 4)
+        
+        x1 = x[np.where(y==1), i][0]
+        ax1 = sns.histplot(x1, bins=50, color='green', alpha=0.7, label='detected')
+        ax1.axvline(np.mean(x1), color='green', lw = 4)
+        ax1.axvline(np.median(x1), color='green', ls='--', lw = 4)
+        
+        plt.title(names[i]+" : %d" %i)
+        plt.legend()
+    plt.show()
+    return 1
