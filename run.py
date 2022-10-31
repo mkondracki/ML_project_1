@@ -15,20 +15,32 @@ from helpers import *
 
 
 #please specify the data_path for the test set
+data_path_tr = "train.csv"
 data_path_te = "test.csv"
 
 # load data.
+y_tr, x_tr, ids_tr = load_csv_data(data_path_tr, sub_sample=False)
 y_te, x_te, ids_te = load_csv_data(data_path_te, sub_sample=False)
 
 #remove the column 22 with discrete values
+x_tr_class = x_tr[:, 22]
+x_tr_reg = np.delete(x_tr, 22, axis=1)
 x_te_class = x_te[:, 22]
 x_te_reg = np.delete(x_te, 22, axis=1)
 
 #replace missing values by median 
+x_tr_reg = replace_nan_by_median(x_tr_reg)
 x_te_reg = replace_nan_by_median(x_te_reg)
 
 
 #split the data according to PRI_jet_num
+#split the data according to PRI_jet_num
+x_tr_split = np.array([x_tr_reg[np.where(x_tr_class==0)], x_tr_reg[np.where(x_tr_class==1)], 
+                       x_tr_reg[np.where(x_tr_class==2)], x_tr_reg[np.where(x_tr_class==3)]], dtype=object)
+
+y_tr_split = np.array([y_tr[np.where(x_tr_class==0)], y_tr[np.where(x_tr_class==1)], 
+                       y_tr[np.where(x_tr_class==2)], y_tr[np.where(x_tr_class==3)]], dtype=object)
+
 x_te_split = np.array([x_te_reg[np.where(x_te_class==0)], x_te_reg[np.where(x_te_class==1)], 
                        x_te_reg[np.where(x_te_class==2)], x_te_reg[np.where(x_te_class==3)]], dtype=object)
 
@@ -38,6 +50,10 @@ y_te_split = np.array([y_te[np.where(x_te_class==0)], y_te[np.where(x_te_class==
 
 
 #remove useless data
+x_tr_del = [np.delete(x_tr_split[0], [4, 5, 6, 8, 12, 22, 23, 24, 25, 26, 27, 28], axis=1),
+            np.delete(x_tr_split[1], [4, 5, 6, 12, 25, 26, 27], axis=1), 
+            x_tr_split[2], x_tr_split[3]]
+
 x_te_del = [np.delete(x_te_split[0], [4, 5, 6, 8, 12, 22, 23, 24, 25, 26, 27, 28], axis=1),
             np.delete(x_te_split[1], [4, 5, 6, 12, 25, 26, 27], axis=1), 
             x_te_split[2], x_te_split[3]]
@@ -46,11 +62,10 @@ x_te_del = [np.delete(x_te_split[0], [4, 5, 6, 8, 12, 22, 23, 24, 25, 26, 27, 28
 
 
 #parameters leading to the best score on AICrowd
-best_degree = 10
-best_lambda = [0, 0, 0, 0]
-#best_lambda = [10**(-4), 0, 10**(-4), 0]
-best_max_iter = [20000, 20000, 20000, 20000]
-best_gamma = [0.2, 0.2, 0.2, 0.2]
+best_degree = 6
+best_lambda = [10**(-4), 0, 10**(-4), 0]
+best_max_iter = [15000, 15000, 15000, 15000]
+best_gamma = [0.1, 1, 0.1, 0.2]
 
 
 
