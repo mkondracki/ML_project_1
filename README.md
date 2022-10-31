@@ -1,6 +1,4 @@
 # ML Project 1
-WE SHOULD CHANGE THE NAME OF PYTHON NOTEBOOK TO **RUN.ipynb** \
-**DELETE** THE FIRST CELL OF PYNOTEBOOK BECAUSE IMPORT PANDAS \
 
 **The code included in this repository applies machine learning models to real data for classification purposes.**
 
@@ -12,6 +10,12 @@ It's an adjunct script that includes all the auxiliary functions required for cl
 
 *helpers.py*\
 Consists of the essential functions for loading the data.
+
+*projectML_.ipynb*\
+The notebook with all the tests
+
+*run.py*\
+The run file leading to the best results
 
 *Dataset*:\
 Using the path "\Data\train.csv", Python notebook assumed that the datasets train.csv and test.csv are placed in the "/Data" folder.
